@@ -1,0 +1,40 @@
+metadata:
+  name: experiment-imagenet
+  modelname: resnet-50
+  batch_size: 32
+  scale_bs: True
+  num_examples: 0
+
+envs:
+  kv_store_big_array_bound: 1000*1000
+  kv_store: dist_sync
+  ps_verbose: 
+  prog_cmd: python train_imagenet.py --network resnet --num-layers 50 --disp-batches 5 --num-epochs 100 --data-train /data/imagenet-train.rec
+
+resources:
+  ps:
+    num_ps: 1
+    ps_cpu : 3
+    ps_mem : 9
+    ps_bw : 0
+  worker:
+    num_worker: 1
+    worker_cpu : 2
+    worker_mem : 8
+    worker_gpu : 1
+    worker_bw : 0
+
+container:
+  image: localhost:5000/k8s-mxnet-cu100
+  init_script: /init.sh
+
+data:
+  work_dir: /mxnet/example/image-classification/data/
+  host_workdir_prefix: /data/k8s-workdir/experiment/
+  hdfs_data: /k8s-mxnet/imagenet/imagenet-train.rec
+  host_data_dir: /data/mxnet-data/imagenet/
+  data_dir: /data/
+  work_volume: k8s-mxnet-work-volume
+  data_mounted: True
+  data_volume: k8s-mxnet-data-volume
+
