@@ -3,20 +3,20 @@ from kubernetes import client, config
 from kubernetes.client import ApiClient
 
 import utils
-from config import k8s_params
+import config
 
-logger = logging.getLogger(config.LOGGER_NAME)
+from log import logger
 
 class KubeAPI:
     def __init__(self):
         # simple way is to follow https://microk8s.io/docs/working-with-kubectl
         configuration = kubernetes.client.Configuration()
-        configuration.host = k8s_params['host']
+        configuration.host = config.k8s_params['host']
         configuration.verify_ssl=False
         # configuration.ssl_ca_cert = k8s_params['ssl_ca_cert']
         # configuration.key_file = k8s_params['key_file']
-        configuration.debug = k8s_params['debug']
-        configuration.api_key['authorization'] = k8s_params['api_token']
+        configuration.debug = config.k8s_params['debug']
+        configuration.api_key['authorization'] = config.k8s_params['api_token']
         configuration.api_key_prefix['authorization'] = 'Bearer'
         client.Configuration.set_default(configuration)
         self.kube_api_obj = client.CoreV1Api()
@@ -24,7 +24,7 @@ class KubeAPI:
     
     def clear_jobs(self):
         api_response = self.batch_v1.delete_collection_namespaced_job(namespace="default")
-        logger("Jobs deleted. status='%s'" % str(api_response.status))
+        logger.debug("Jobs deleted. status='%s'" % str(api_response.status))
 
     def get_pods(self, namespace='default', field_selector={}, label_selector={}):
         """

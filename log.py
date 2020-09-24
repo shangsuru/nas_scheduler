@@ -1,6 +1,8 @@
 import logging
 from datetime import datetime
 
+import config
+
 def getLogger(name='logger', level='INFO', mode='w'):
 	# current_time = datetime.now().strftime("%d-%m-%Y-%H-%M-%S")
 	# name = f'scheduler_{current_time}'
@@ -30,3 +32,5 @@ def getLogger(name='logger', level='INFO', mode='w'):
 	logger.addHandler(ch)
 
 	return logger
+
+logger = getLogger(name=config.LOGGER_NAME, level=config.LOG_LEVEL)

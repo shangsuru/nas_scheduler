@@ -6,7 +6,6 @@ import threading
 import subprocess
 import requests
 import ast
-import logging
 import shutil
 
 import config
@@ -14,8 +13,8 @@ import utils
 
 from k8s.api import KubeAPI
 from k8s.job import Job
+from log import logger
 
-logger = logging.getLogger(config.LOGGER_NAME)
 k8s_api = KubeAPI()
 
 class DLJob():
