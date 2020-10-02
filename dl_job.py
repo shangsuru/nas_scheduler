@@ -494,13 +494,13 @@ class DLJob():
         self.worker_mount_dirs = self.__set_mount_dirs('worker', self.host_workdir_prefix)  # worker container mount
         self.__set_batch_size()
 
-        self.running_jobs = self._create_jobs()
+        self.running_tasks = self._create_jobs()
 
         # prepare data
         self._read_data()
 
         # start pods in k8s. equivalent to microk8s kubectl create -f jobs.yaml
-        for job in self.running_jobs:
+        for job in self.running_tasks:
             k8s_api.submit_job(job)
 
     def delete(self, del_all=False):
@@ -511,9 +511,9 @@ class DLJob():
         """
 
         # shutdown job in k8s
-        for job in self.running_jobs:
-            job_name = job.metadata.name
-            thread = threading.Thread(target=(lambda name=job_name: k8s_api.delete_job(name)), args=())
+        for task in self.running_tasks:
+            task_name = task.metadata.name
+            thread = threading.Thread(target=(lambda name=task_name: k8s_api.delete_job(name)), args=())
             thread.start()
             thread_list.append(thread)
 
