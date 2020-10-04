@@ -355,9 +355,10 @@ class OptimusScheduler(SchedulerBase):
             timer (Timer): timer instance
         """
         super().__init__(cluster, timer)
-        self.name = 'optimus_scheduler'
+        self.module_name = 'optimus_scheduler'
         self.estimator = OptimusEstimator(cluster)
         self.allocator = DefaultAllocator()
+        self.start()
 
     def __del__(self):
         super().__del__()
@@ -380,7 +381,7 @@ class OptimusScheduler(SchedulerBase):
 
         rem_epoch = end_epoch - job.progress  # the rem_epoch is negative if estimated epoch return -1
         est_speed = self.estimator.est_speed(job, job.resources.ps.num_ps, job.resources.worker.num_worker)
-        logger.debug(f'[scheduler] estimated speed: {est_speed}')
+        logger.debug(f'[{self.module_name}] estimated speed: {est_speed}')
         
         if est_speed <= 0:
             self.not_ready_jobs.add(job)
@@ -424,13 +425,13 @@ class OptimusScheduler(SchedulerBase):
             (arrival_time, job) = self.queueing_jobs.get()
             new_jobs.append(job)
 
-        logger.debug(f'[scheduler] newly arrived jobs: {new_jobs}')
+        logger.debug(f'[{self.module_name}] newly arrived jobs: {new_jobs}')
 
         # first estimate speed
         test_tic = time.time()
         self.estimator.existing_jobs = self.uncompleted_jobs + self.completed_jobs
         self.estimator.test_speed(new_jobs)
-        logger.debug('[scheduler] Finish testing speed for new jobs.')
+        logger.debug('[{self.module_name}] Finish testing speed for new jobs.')
         test_toc = time.time()
         self.testing_overhead += (test_toc - test_tic)
 
@@ -503,16 +504,16 @@ class OptimusScheduler(SchedulerBase):
                 # no enough resource
                 break
         # how to handle not_ready_jobs
-        logger.debug(f'[scheduler] not ready jobs: {self.not_ready_jobs}')
+        logger.debug(f'[{self.module_name}] not ready jobs: {self.not_ready_jobs}')
 
         # check the scheduling result
         for job in self.uncompleted_jobs:
-            logger.debug(f'[scheduler] scheduling results | num_ps:{job.num_ps}, num_worker:{job.num_worker}')
+            logger.debug(f'[{self.module_name}] scheduling results | num_ps:{job.num_ps}, num_worker:{job.num_worker}')
 
         # how to handle remaining resources? Due to error sometimes allocating resource can still increase speed
 
         toc = time.time()
-        logger.debug(f'[scheduler] scheduling time: {(toc - tic):.3f} seconds.')
+        logger.debug(f'[{self.module_name}] scheduling time: {(toc - tic):.3f} seconds.')
 
         
 

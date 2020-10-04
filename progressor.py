@@ -8,8 +8,10 @@ from log import logger
 class Progressor(Handler):
     def __init__(self, timer):
         super().__init__(connection=hub.connection, entity='progressor')
+        self.module_name = 'progressor'
         self.timer = timer
         self.running_jobs = set()
+        self.start()
 
     def process(self, msg):
         logger.debug(f'[progressor] {msg}')
