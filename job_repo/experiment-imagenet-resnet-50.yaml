@@ -30,11 +30,13 @@ container:
 
 data:
   work_dir: /mxnet/example/image-classification/data/
+  work_volume: k8s-mxnet-work-volume
+
   host_workdir_prefix: /data/k8s-workdir/experiment/
   hdfs_data: /k8s-mxnet/imagenet/imagenet-train.rec
   host_data_dir: /data/mxnet-data/imagenet/
   data_dir: /data/
-  work_volume: k8s-mxnet-work-volume
+
   data_mounted: True
   data_volume: k8s-mxnet-data-volume
 

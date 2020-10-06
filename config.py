@@ -8,7 +8,8 @@ k8s_params = {
 	"host": "https://localhost:16443",
 	"debug": False,
 	"ssl_ca_cert": "ca.crt",
-	"key_file": "ca.key"
+	"key_file": "ca.key",
+	"namespace": "default"
 }
 
 LOGGER_NAME = "NAS_scheduler"
@@ -28,7 +29,7 @@ NODE_LIST = ['127.0.0.1']
 
 
 #Job details
-TOT_NUM_JOBS = 60
+TOT_NUM_JOBS = 3
 T = 20
 MIN_SLEEP_UNIT = 10**-3
 
@@ -38,3 +39,5 @@ LOSS_LITTLE_CHANGE_EPOCH_NUM = 10
 LOSS_CONVERGENCE = 0.05
 
 JOB_SCHEDULER='optimus'
+
+RANDOM_SEED = 9973

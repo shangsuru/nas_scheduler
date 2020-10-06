@@ -1,9 +1,14 @@
+import time
+from queue import PriorityQueue
+
 from .allocator_base import ResourceAllocator
+from log import logger
+
 
 class DefaultAllocator(ResourceAllocator):
 
-    def __init__(self):
-        pass
+    def __init__(self, cluster):
+        super().__init__(cluster)
 
     def allocate(self, jobs):
         """Allocate resources for the given jobs.
@@ -37,7 +42,7 @@ class DefaultAllocator(ResourceAllocator):
         for job in jobs:
             job_sort_queue.put((job.resources.ps.num_ps + job.resources.worker.num_worker, job))
 
-        cpu_avail_queue = cluster.sort_nodes('cpu')
+        cpu_avail_queue = self.cluster.sort_nodes('cpu')
 
         ps_placements = dict()
         worker_placements = dict()
@@ -59,9 +64,9 @@ class DefaultAllocator(ResourceAllocator):
                     # place ps evenly
                     node = cand_place_nodes[i % len(cand_place_nodes)]
                     # check whether resource is enough to place this ps
-                    suff_resr = self.cluster.check_node_resource_full(node, job.resources.ps.ps_cpu, 
-                                                                            job.resources.ps.ps_mem, 
-                                                                            job.resources.ps.ps_bw)
+                    suff_resr = self.cluster.check_node_resource_full(node, job.resources.ps.ps_cpu,
+                                                                      job.resources.ps.ps_mem,
+                                                                      job.resources.ps.ps_bw)
                     if suff_resr:
                         ps_nodes.append(node)
                         # minus temporary resources
@@ -81,10 +86,10 @@ class DefaultAllocator(ResourceAllocator):
                     # also place worker evenly
                     node = cand_place_nodes[i % len(cand_place_nodes)]
                     # check whether resource is enough to place this ps
-                    suff_resr = self.cluster.check_node_resource_full(node, job.resources.worker.worker_cpu, 
-                                                                            job.resources.worker.worker_mem, 
-                                                                            job.resources.worker.worker_bw,
-                                                                            job.resources.worker.worker_gpu)
+                    suff_resr = self.cluster.check_node_resource_full(node, job.resources.worker.worker_cpu,
+                                                                      job.resources.worker.worker_mem,
+                                                                      job.resources.worker.worker_bw,
+                                                                      job.resources.worker.worker_gpu)
                     if suff_resr:
                         worker_nodes.append(node)
                         self.cluster.assign_resources(job, "worker", 1, node)
@@ -100,8 +105,8 @@ class DefaultAllocator(ResourceAllocator):
                         break
 
                 if fit_flag:
-                    ps_placements[job.id] = [self.cluster.nodes[node] for node in ps_nodes]
-                    worker_placements[job.id] = [self.cluster.nodes[node] for node in worker_nodes]
+                    ps_placements[job.uid] = [self.cluster.nodes[node] for node in ps_nodes]
+                    worker_placements[job.uid] = [self.cluster.nodes[node] for node in worker_nodes]
                     for node in cand_place_nodes:  # enqueue them back
                         cpu_avail_queue.put((self.cluster.node_used_cpu_list[node], node))
                     break
@@ -121,24 +126,25 @@ class DefaultAllocator(ResourceAllocator):
                             if flag_place_ps:
                                 # place ps task
                                 for node in range(len(self.cluster.nodes)):
-                                    suff_resr = self.cluster.check_node_resource_full(node, job.resources.ps.ps_cpu, 
-                                                                                            job.resources.ps.ps_mem, 
-                                                                                            job.resources.ps.ps_bw)
+                                    suff_resr = self.cluster.check_node_resource_full(node, job.resources.ps.ps_cpu,
+                                                                                      job.resources.ps.ps_mem,
+                                                                                      job.resources.ps.ps_bw)
                                     if suff_resr:
                                         ps_nodes.append(node)
-                                        self.assign_resources(job, "ps", 1, node)
+                                        self.cluster.assign_resources(job, "ps", 1, node)
                                         flag_no_resource = False
                                         break
                             else:
                                 # place worker task
                                 for node in range(len(self.cluster.nodes)):
-                                    suff_resr = self.cluster.check_node_resource_full(node, job.resources.worker.worker_cpu, 
-                                                                                            job.resources.worker.worker_mem,
-                                                                                            job.resources.worker.worker_bw, 
-                                                                                            job.resources.worker.worker_gpu)
+                                    suff_resr = self.cluster.check_node_resource_full(node,
+                                                                                      job.resources.worker.worker_cpu,
+                                                                                      job.resources.worker.worker_mem,
+                                                                                      job.resources.worker.worker_bw,
+                                                                                      job.resources.worker.worker_gpu)
                                     if suff_resr:
                                         worker_nodes.append(node)
-                                        self.assign_resources(job, "worker", 1, node)
+                                        self.cluster.assign_resources(job, "worker", 1, node)
                                         flag_no_resource = False
                                         break
                             if flag_no_resource:
@@ -146,14 +152,15 @@ class DefaultAllocator(ResourceAllocator):
                             flag_place_ps = not flag_place_ps  # change to place the other task
                             if len(ps_nodes) >= job.resources.ps.num_ps:  # all ps tasks have been placed
                                 flag_place_ps = False
-                            if len(worker_nodes) >= job.resources.worker.num_worker:  # all worker tasks have been placed
+                            if len(
+                                    worker_nodes) >= job.resources.worker.num_worker:  # all worker tasks have been placed
                                 flag_place_ps = True
 
                         if len(ps_nodes) > 0 and len(worker_nodes) > 0:
-                            ps_placements[job.id] = [self.cluster.nodes[node] for node in ps_nodes]
-                            job.resources.ps.num_ps = len(ps_placements[job.id])
-                            worker_placements[job.id] = [self.cluster.nodes[node] for node in worker_nodes]
-                            job.resources.worker.num_worker = len(worker_placements[job.id])
+                            ps_placements[job.uid] = [self.cluster.nodes[node] for node in ps_nodes]
+                            job.resources.ps.num_ps = len(ps_placements[job.uid])
+                            worker_placements[job.uid] = [self.cluster.nodes[node] for node in worker_nodes]
+                            job.resources.worker.num_worker = len(worker_placements[job.uid])
                         else:
                             for node in ps_nodes:
                                 self.cluster.free_resources(job, "ps", 1, node)
@@ -161,9 +168,9 @@ class DefaultAllocator(ResourceAllocator):
                                 self.cluster.free_resources(job, "worker", 1, node)
                         # break the while loop
                         break
-        
-        logger.debug(f'[scheduler] used cpu: {self.node_used_cpu_list}')
+
+        logger.debug(f'[{self.module_name}] used cpu: {self.cluster.node_used_cpu_list}')
         toc = time.time()
-        logger.info(f'[scheduler] Finished job placement in {toc - tic:.3f} seconds')
-        
-        return (ps_placements, worker_placements)
+        logger.info(f'[{self.module_name}] Finished job placement in {toc - tic:.3f} seconds')
+
+        return ps_placements, worker_placements

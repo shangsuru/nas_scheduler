@@ -17,6 +17,7 @@ class XCHQueues():
         'progressor': Queue('progressor', exchange, routing_key='progressor'),
         'statsor': Queue('statsor', exchange, routing_key='statsor'),
         'timer': Queue('timer', exchange, routing_key='timer'),
+        'simulator': Queue('simulator', exchange, routing_key='simulator'),
         'broadcast': Broadcast(name='broadcast', exchange=broadcast_exchange, auto_delete=True),
     }
 
@@ -26,6 +27,15 @@ class Payload():
         self.source = source
         self.type = type
         self.content = content
+
+    def __str__(self):
+        return f'Payload(t={self.timestamp}, source={self.source}, type={self.type}, content={self.content})'
+
+    def fetch_content(self, entity):
+        if self.content:
+            return self.content.get(entity, None)
+        else:
+            return None
 
 class Router():
     def __init__(self):
@@ -90,7 +100,7 @@ class Handler(threading.Thread, ConsumerMixin, metaclass=abc.ABCMeta):
         return [consumer]
 
     def __handle_message(self, body, message):
-        logger.debug(f'[{self.module_name}] Received message {body}')
+        logger.debug(f'[{self.module_name}] Received message {str(body)}')
         if body == 'stop':
             self.stop()
         else:

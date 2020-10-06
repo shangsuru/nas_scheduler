@@ -22,9 +22,9 @@ class Statsor(Handler):
         self.start()
 
     def process(self, msg):
-        logger.debug(f'[{self.module_name}] received msg: {msg}')
+        logger.debug(f'[{self.module_name}] received msg: {str(msg)}')
 
-        if msg.type == "control" and msg.src == "scheduler":
+        if msg.type == "control" and msg.source == "scheduler":
             # signal that the scheduler has finished its timeslot and we can start getting statistics
             self._stats(msg.timestamp)
         else:
@@ -38,10 +38,10 @@ class Statsor(Handler):
         logger.info(f'[{self.module_name}] submitted jobs: {num_submit_jobs}, completed jobs: {num_completed_jobs}, \
                         uncompleted_jobs: {num_uncompleted_jobs}')
 
-        cluster_cpu_util = float('%.3f' % (1.0 * self.cluster.cluster_used_cpu / self.cluster.cluster_num_cpu))
-        cluster_mem_util = float('%.3f' % (1.0 * self.cluster.cluster_used_mem / self.cluster.cluster_num_mem))
-        cluster_bw_util = float('%.3f' % (1.0 * self.cluster.cluster_used_bw / self.cluster.cluster_num_bw))
-        cluster_gpu_util = float('%.3f' % (1.0 * self.cluster.cluster_used_gpu / self.cluster.cluster_num_gpu))
+        cluster_cpu_util = float('%.3f' % (1.0 * self.cluster.used_cpu / self.cluster.num_cpu))
+        cluster_mem_util = float('%.3f' % (1.0 * self.cluster.used_mem / self.cluster.num_mem))
+        cluster_bw_util = float('%.3f' % (1.0 * self.cluster.used_bw / self.cluster.num_bw))
+        cluster_gpu_util = float('%.3f' % (1.0 * self.cluster.used_gpu / self.cluster.num_gpu))
 
         logger.info(f'[{self.module_name}] CPU utilization: {(100.0 * cluster_cpu_util):.3f}%, \
                          MEM utilization: {(100.0 * cluster_mem_util):.3f}%,\

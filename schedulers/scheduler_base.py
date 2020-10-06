@@ -4,6 +4,7 @@ import threading
 from queue import PriorityQueue
 
 from communication import Handler, hub, Payload
+from allocators.default_allocator import DefaultAllocator
 from log import logger
 
 class SchedulerBase(Handler, metaclass=abc.ABCMeta):
@@ -13,10 +14,12 @@ class SchedulerBase(Handler, metaclass=abc.ABCMeta):
         self.module_name = 'scheduler'
         self.timer = timer
         self.cluster = cluster
+        self.allocator: DefaultAllocator
 
         self.queueing_jobs = PriorityQueue()
         self.uncompleted_jobs = []
         self.completed_jobs = []
+        self.running_jobs = []
         self.cur_ts_completed_jobs = []
         self.not_ready_jobs = set()
 
@@ -24,7 +27,7 @@ class SchedulerBase(Handler, metaclass=abc.ABCMeta):
         self.testing_overhead = 0
 
     def process(self, msg):
-        job = msg.content.get('job')
+        job = msg.fetch_content('job')
         if msg.type == 'submission':
             if job is None:
                 # generator has finished the timeslot
@@ -74,10 +77,10 @@ class SchedulerBase(Handler, metaclass=abc.ABCMeta):
         # send message to progress to update job progress
         thread_list = []
         for job in self.uncompleted_jobs:
-            if job.id not in ps_placements:
+            if job.uid not in ps_placements:
                 continue
-            ps_placement = ps_placements[job.id]
-            worker_placement = worker_placements[job.id]
+            ps_placement = ps_placements[job.uid]
+            worker_placement = worker_placements[job.uid]
             if len(ps_placement) > 0 and len(worker_placement) > 0:
                 # this may cause many ssh connections on a server and an error "ssh_exchange_identification: Connection closed by remote host"
                 # to avoid this error, run 'echo "MaxStartups 100:10:200" | sudo tee -a /etc/ssh/sshd_config && sudo service ssh restart' on the server
@@ -153,4 +156,4 @@ class SchedulerBase(Handler, metaclass=abc.ABCMeta):
         """Send message to timer to signal starting next timeslot.
         """
         msg = Payload(self.timer.get_clock(), 'scheduler', 'control', None)
-        hub.push(Payload, 'timer')
+        hub.push(msg, 'timer')

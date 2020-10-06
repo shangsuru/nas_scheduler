@@ -7,6 +7,7 @@ import subprocess
 import requests
 import ast
 import shutil
+from munch import munchify
 
 import config
 import utils
@@ -21,37 +22,33 @@ class DLJob():
     """Job class defines the structure of a DL training job.
 
     Attributes:
-        id (int): job unique id -- incremental style
-        tag (str): eg., measurement-imagenet, i.e., category-dataset
-        model_name (str): deep-learning network name
+        uid (int): job unique id -- incremental style
         workload_id (int): unique index for the job. useful for identifying 
             the job characteristic in the future.
-        name (str): job name as in '{id}-{tag}-{model_name}'. e.g. '1-measurement-imagenet-vgg16'
+        name (str): job name as in '{uid}-{name}-{model_name}'. e.g. '1-measurement-imagenet-vgg16'
         timestamp (str): job creation time as in '%Y-%m-%d-%H:%M:%S'
         dir (str): job working directory as in '{dir_prefix}/{name}-{timestamp}/}'
 
     """
-    def __init__(self, id, workload_id, dir_prefix, conf):
+    def __init__(self, uid, workload_id, dir_prefix, conf):
         """Initializes a job object.
         
         Args:
-            id (int): job unique id -- incremental style
-            tag (str): eg., measurement-imagenet, i.e., category-dataset
-            model_name (str): deep-learning network name
+            uid (int): job unique id -- incremental style
             workload_id (int): unique index for the job. useful for identifying 
                 the job characteristic in the future.
             dir_prefix (str): job working directory
+            conf (dict): job configuration dictionary
         """
-        self.metadata = utils.objectview(conf['metadata'])
-        self.resources = utils.objectview(conf['resources'])
-        self.container = utils.objectview(conf['container'])
-        self.data = utils.objectview(conf['data'])
-        self.envs = utils.objectview(conf['envs'])
+        self.metadata = munchify(conf.get('metadata'))
+        self.resources = munchify(conf.get('resources'))
+        self.container = munchify(conf.get('container'))
+        self.data = munchify(conf.get('data'))
+        self.envs = munchify(conf.get('envs'))
 
-        self.id = id
-        self.tag = tag
+        self.uid = uid
         self.workload_id = workload_id
-        self.name = f'{id}-{self.metadata.tag}-{self.metadata.modelname}'
+        self.name = f'{uid}-{self.metadata.name}-{self.metadata.modelname}'
 
         self.timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
         self.dir = os.path.join(dir_prefix, f'{self.name}-{self.timestamp}')
@@ -84,85 +81,15 @@ class DLJob():
         self.num_epochs = 0
         self.epoch_size = 0
 
-    # def set_config(self):
-    #     """Set training job config.
-    #     image (str): container image URI, e.g. localhost:5000/k8s-mxnet-cu100
-    #     script (str): script to execute, e.g. /init.sh
-    #     work_dir (str): working directory on container, e.g. /mxnet/example/image-classification/data/
-    #     host_workdir_prefix (str): host working directory, e.g. /data/k8s-workdir/experiment/
-    #     work_volume (str): TBD
+        self.worker_mount_dirs = []
 
-    #     hdfs_data (list): list of hdfs paths, e.g. ['/k8s-mxnet/imagenet/imagenet-train.rec']
-    #     data_dir (str): data directory, e.g. /data
-    #     host_data_dir (str): data directory on the host, e.g. /data/mxnet-data/imagenet/
-    #     data_mounted (bool): Is data mounted?
-    #     data_volume (str): TBD
+    def __lt__(self, other):
+        if not hasattr(other, 'uid'):
+            return NotImplemented
+        return self.uid < other.uid
 
-    #     hdfs_data (list): list of hdfs paths, e.g. ['/k8s-mxnet/imagenet/imagenet-train.rec']
-    #     data_dir (str): data directory, e.g. /data
-    #     host_data_dir (str): data directory on the host, e.g. /data/mxnet-data/imagenet/
-    #     data_mounted (bool): Is data mounted?
-    #     data_volume (str): TBD
-
-    #     prog (str): command to invoke to start the training process. 
-    #         e.g. python train_imagenet.py --network resnet --num-layers 50 --disp-batches 5 --num-epochs 100 --data-train /data/imagenet-train.rec
-    #     batch_size (int): batch size, e.g. 32
-    #     kv_store (str): MXNet KVStore is a place for data sharing. 
-    #         Think of it as a single object shared across different devices (GPUs and computers), 
-    #         where each device can push data in and pull data out. Possible values:
-    #             *dist_sync*: Behaves similarly to local but with one major difference. With dist_sync, batch-size now means the batch size used on each machine. So if there are n machines and we use batch size b, then dist_sync behaves like local with batch size n * b.
-    #             *dist_device_sync*: Identical to dist_sync with the difference similar to device vs local.
-    #             *dist_async*: Performs asynchronous updates. The weights are updated whenever gradients are received from any machine. No two updates happen on the same weight at the same time. However, the order is not guaranteed.
-    #     scale_bs (bool): adjustable batch size?
-    #     num_examples (int): number of training dataset, required for computing the epoch_size
-    #     num_epochs (int): number of epochs
-    #     ---
-    #     Setting dataset directory for the training job.
-    #     If data not in local host, fetch from HDFS.
-    #     Dataset list including training data and validation data.
-    #     ---
-    #     Setting dataset directory for the training job.
-    #     If data not in local host, fetch from HDFS.
-    #     Dataset list including training data and validation data.
-    #     """
-    #     # setting parameter-server parameters
-    #     self.num_ps = conf.num_ps
-    #     self.ps_cpu = conf.ps_cpu
-    #     self.ps_mem = conf.ps_mem
-    #     self.ps_bw = conf.ps_bw
-
-    #     #setting worker parameters
-    #     self.num_worker = conf.num_worker
-    #     self.worker_cpu = conf.worker_cpu
-    #     self.worker_mem = conf.worker_mem
-    #     self.worker_bw = conf.worker_bw
-    #     self.worker_gpu = conf.worker_gpu
-
-    #     # setting container and work volumes
-    #     self.image = conf.image
-    #     self.script = conf.script
-    #     self.work_dir = conf.work_dir
-    #     self.host_workdir_prefix = conf.host_workdir_prefix
-    #     self.work_volume = conf.work_volume
-
-    #     # setting training job 
-    #     self.prog = conf.prog
-    #     self.tot_batch_size = conf.batch_size
-    #     self.kv_store = conf.kv_store
-    #     self.scale_bs = conf.scale_bs
-    #     self.num_examples = conf.num_examples
-    #     # for unknown num_epochs, will update it in progressor with estimation
-    #     self.num_epochs = conf.num_epochs
-
-    #     #setting dataset
-    #     self.hdfs_data = conf.hdfs_data
-    #     self.data_dir = conf.data_dir
-    #     self.host_data_dir = conf.host_data_dir
-    #     self.data_mounted = conf.data_mounted
-    #     self.data_volume = conf.data_volume
-
-    #     self.kv_store_big_array_bound = str(conf.kv_store_big_array_bound)
-    #     self.ps_verbose = conf.ps_verbose
+    def __repr__(self):
+        return f'DLJob(name={self.name})'
 
     def set_ps_placement(self, ps_placement):
         """Setting the placement of parameter servers.
@@ -237,9 +164,9 @@ class DLJob():
                 self.batch_sizes = [str(i) for i in batch_sizes]
 
         if 'sync' in self.envs.kv_store:
-            self.epoch_size = self.num_examples / self.metadata.batch_size
-        elif 'async' in self.kv_store:
-            self.epoch_size = self.num_examples / self.metadata.batch_size / self.resources.worker.num_worker
+            self.epoch_size = self.metadata.num_examples / self.metadata.batch_size
+        elif 'async' in self.envs.kv_store:
+            self.epoch_size = self.metadata.num_examples / self.metadata.batch_size / self.resources.worker.num_worker
 
     def _create_jobs(self):
         """Create Kubernetes job object
@@ -250,8 +177,9 @@ class DLJob():
             'work_dir': self.data.work_dir,
             'work_volume': self.data.work_volume,
             'data_dir': self.data.data_dir,
-            'data_mount_dir': self.data.host_data_dir,
             'data_volume': self.data.data_volume,
+
+            'host_data_dir': self.data.host_data_dir,
 
             'num_ps': self.resources.ps.num_ps,
             'ps_cpu': self.resources.ps.ps_cpu,
@@ -268,45 +196,33 @@ class DLJob():
         }
 
         jobs = []
-        for j in range(num_worker):
+        for j in range(self.resources.worker.num_worker):
             worker_job_conf = {
                 'worker_mount_dirs': self.worker_mount_dirs[j],
                 'worker_placement': self.worker_placement[j],
                 'batch_size': self.batch_sizes[j]
             }
-            jobs.append(Job(name=self.name,
-                            type='worker',
-                            id=j,
-                            image=self.container.image,
-                            job_conf={**job_conf_base, **worker_job_conf}))
+            job = Job(name=self.name,
+                type='worker',
+                replica_id=j,
+                image=self.container.image,
+                job_conf={**job_conf_base, **worker_job_conf})
+            jobs.append(job.k8s_job_obj)
 
-        for j in range(num_ps):
+
+        for j in range(self.resources.ps.num_ps):
             ps_job_conf = {
                 'ps_mount_dirs': self.ps_mount_dirs[j],
                 'ps_placement': self.ps_placement[j]
             }
-            jobs.append(Job(name=self.name,
-                            type='worker',
-                            id=j,
-                            image=self.container.image,
-                            job_conf={**job_conf_base, **ps_job_conf}))
+            job = Job(name=self.name,
+                    type='ps',
+                    replica_id=j,
+                    image=self.container.image,
+                    job_conf={**job_conf_base, **ps_job_conf})
+            jobs.append(job.k8s_job_obj)
 
         return jobs
-
-
-        #create the k8s yaml file by parsing the jinja template
-        # jinja_file_path = os.path.join(self.dir, f'{self.name}.jinja')
-        # yaml_file_path = os.path.join(self.dir, f'{self.name}.yaml')
-        # with open(os.path.join('templates','k8s-mxnet-template.jinja'), 'r') as jinja_tpl_fp:
-        #     jinja_content = jinja_fp.read()
-        #     for key, value in variables.items():
-        #         jinja_content.replace(f'${key}', value)
-
-        #     with open(jinja_file_path, 'w') as jinja_fp:
-        #         jinja_fp.write(jinja_content)
-
-        #     with open(yaml_file_path, 'w') as yaml_fp:
-        #         yaml_fp.write(jinja2.Template(jinja_content).render())
 
     def _read_data(self):
         """Read training data from localhost, otherwise from HDFS.
@@ -351,7 +267,7 @@ class DLJob():
                 try:
                     output = subprocess.check_output(cmd, shell=True)
                     counter = 0
-                    while output == '' or output == None:
+                    while output == '' or output is None:
                         output = subprocess.check_output(cmd, shell=True)
                         time.sleep(0.001 * (10 ** counter))
                         counter = counter + 1
@@ -400,7 +316,7 @@ class DLJob():
 
                     # the other side is opening and writing the file, try again
                     counter = 0
-                    while output == '' or output == None:
+                    while output == '' or output is None:
                         output = subprocess.check_output(cmd, shell=True)
                         time.sleep(0.001*(10**counter))
                         counter = counter + 1
@@ -485,13 +401,13 @@ class DLJob():
             - Reading data
             - Submitting job to k8s
         """
-        logger.info("starting job " + self.name + "...")
+        logger.info(f'[dl_job] starting job {self.name} ...')
 
         # job working dir on host
         os.makedirs(self.dir)
 
-        self.ps_mount_dirs = self.__set_mount_dirs('ps', self.host_workdir_prefix)  # ps container mount
-        self.worker_mount_dirs = self.__set_mount_dirs('worker', self.host_workdir_prefix)  # worker container mount
+        self.ps_mount_dirs = self.__set_mount_dirs('ps', self.data.host_workdir_prefix)  # ps container mount
+        self.worker_mount_dirs = self.__set_mount_dirs('worker', self.data.host_workdir_prefix)  # worker container mount
         self.__set_batch_size()
 
         self.running_tasks = self._create_jobs()
@@ -511,15 +427,16 @@ class DLJob():
         """
 
         # shutdown job in k8s
+        thread_list = []
         for task in self.running_tasks:
-            task_name = task.metadata.name
+            #TODO: self.name for k8s task name? maybe wrong?
+            task_name = self.name
             thread = threading.Thread(target=(lambda name=task_name: k8s_api.delete_job(name)), args=())
             thread.start()
             thread_list.append(thread)
 
         for thread in thread_list:
             thread.join()
-        os.system('rm -rf ' + temp_dir)
 
         if not del_all:
             return

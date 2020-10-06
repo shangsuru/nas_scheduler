@@ -39,7 +39,7 @@ class OptimusEstimator():
         node_used_bw_list = [0 for i in range(self.cluster.num_nodes)]
 
         for job in jobs:
-            placements[job.id] = []
+            placements[job.uid] = []
             for i in range(job.resources.ps.num_ps): # place each bundle
                 # random placement
                 cpu_req = job.resources.worker.worker_cpu + job.resources.ps.ps_cpu
@@ -48,8 +48,8 @@ class OptimusEstimator():
                 gpu_req = job.resources.worker.worker_gpu
 
                 # check whether resources are sufficient
-                for i in range(self.cluster.num_nodes):
-                    node_index = (cur_node_index + i) % self.cluster.num_nodes
+                for j in range(self.cluster.num_nodes):
+                    node_index = (cur_node_index + j) % self.cluster.num_nodes
                     suff_resr = True
                     if node_used_cpu_list[node_index] + cpu_req > config.CPU_PER_NODE or \
                        node_used_mem_list[node_index] + mem_req > config.MEM_PER_NODE or \
@@ -58,7 +58,7 @@ class OptimusEstimator():
                         suff_resr = False
                         continue
 
-                    if suff_resr == True:
+                    if suff_resr:
                         # node node_index has enough resources
                         break
 
@@ -69,10 +69,10 @@ class OptimusEstimator():
                     node_used_gpu_list[node_index] += gpu_req
 
                     # placement
-                    if job.id in placements:
-                        placements[job.id].append(self.cluster.nodes[node_index])
+                    if job.uid in placements:
+                        placements[job.uid].append(self.cluster.nodes[node_index])
                     else:
-                        placements[job.id] = [self.cluster.nodes[node_index]]
+                        placements[job.uid] = [self.cluster.nodes[node_index]]
                 else:
                     break
 
@@ -105,7 +105,7 @@ class OptimusEstimator():
         self.existing_jobs += new_jobs
         counter = 0
         while True:
-            q = Queue.PriorityQueue()
+            q = PriorityQueue()
             # less test speed, higher priority
             collected = True
             for job in new_jobs:
@@ -129,7 +129,7 @@ class OptimusEstimator():
                     continue
                 # determine number of ps and number of worker
                 while True:
-                    job.resources.worker.num_worker = random.randint(1,10)
+                    job.resources.worker.num_worker = random.randint(1, 10)
                     job.resources.ps.num_ps = job.resources.worker.num_worker
                     if (job.resources.ps.num_ps, job.resources.worker.num_worker) in job.training_speeds: # avoid repetition
                         # will cause infinite loop if job already has 10 points
@@ -145,7 +145,7 @@ class OptimusEstimator():
             running_jobs = []
             threads = []
             for job in sorted_jobs:
-                placement = placements[job.id]
+                placement = placements[job.uid]
                 if len(placement) == job.resources.ps.num_ps:
                     running_jobs.append(job)
                     thread = threading.Thread(target=self._run, args=(job, placement,))
@@ -196,7 +196,7 @@ class OptimusEstimator():
     --------------Below is completion epoch estimation----------------
     '''
 
-    def __loss_fit_func(x, a, b, c):
+    def __loss_fit_func(self, x, a, b, c):
         return 1/(a*(x)+b) + c
 
     def _loss_curve_fitting(self, epochs_arr, losses_arr):
@@ -303,12 +303,12 @@ class OptimusEstimator():
             return job.training_speeds[(num_ps, num_worker)]
         else:
             # do training speed curve fitting here
+            ps_list = []
+            worker_list = []
+            speed_list = []
             if 'async' in job.kv_store:
                 if len(job.training_speeds) >= 4:
                     # do not need curve fitting each time, can be further optimized. future work
-                    ps_list = []
-                    worker_list = []
-                    speed_list = []
                     for key, value in job.training_speeds.items():
                         (ps, worker) = key
                         ps_list.append(float(ps))
@@ -326,9 +326,6 @@ class OptimusEstimator():
                     return -1
             elif 'sync' in job.kv_store:
                 if len(job.training_speeds) >= 5:
-                    ps_list = []
-                    worker_list = []
-                    speed_list = []
                     for key, value in job.training_speeds.items():
                         (ps, worker) = key
                         ps_list.append(float(ps))
@@ -357,7 +354,7 @@ class OptimusScheduler(SchedulerBase):
         super().__init__(cluster, timer)
         self.module_name = 'optimus_scheduler'
         self.estimator = OptimusEstimator(cluster)
-        self.allocator = DefaultAllocator()
+        self.allocator = DefaultAllocator(cluster)
         self.start()
 
     def __del__(self):
@@ -431,7 +428,7 @@ class OptimusScheduler(SchedulerBase):
         test_tic = time.time()
         self.estimator.existing_jobs = self.uncompleted_jobs + self.completed_jobs
         self.estimator.test_speed(new_jobs)
-        logger.debug('[{self.module_name}] Finish testing speed for new jobs.')
+        logger.debug(f'[{self.module_name}] Finish testing speed for new jobs.')
         test_toc = time.time()
         self.testing_overhead += (test_toc - test_tic)
 

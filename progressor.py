@@ -1,4 +1,3 @@
-import threading
 import time
 
 import config
@@ -11,18 +10,21 @@ class Progressor(Handler):
         self.module_name = 'progressor'
         self.timer = timer
         self.running_jobs = set()
+        self.num_running_tasks = []
+
         self.start()
 
-    def process(self, msg):
-        logger.debug(f'[progressor] {msg}')
-        
-        if msg.src == "scheduler" and msg.type == "running":
+    def process(self, msg: Payload):
+        logger.debug(f'[{self.module_name}] received message: {str(msg)}')
+
+        job = msg.fetch_content('job')
+        if msg.source == 'scheduler' and msg.type == 'running':
             if msg.content['job'] not in self.running_jobs:
                 self.running_jobs.add(job)
-        elif msg.src == "scheduler" and type == "pending":
+        elif msg.source == 'scheduler' and msg.type == 'pending':
             if job in self.running_jobs:
                 self.running_jobs.remove(job)
-        elif src == "scheduler" and type == "done" and msg.content['job'] is None:
+        elif msg.source == 'scheduler' and msg.type == 'done' and job is None:
             self._update_progress()
 
     def _update_progress(self):
@@ -33,7 +35,7 @@ class Progressor(Handler):
         # save progress of each job at the beginning of time slot
         saved_progress_dict = dict()
         for job in self.running_jobs.copy():
-            saved_progress_dict[job.id] = job.progress
+            saved_progress_dict[job.uid] = job.progress
 
         # collect cpu occupations
         self.ps_cpu_occupations = []
@@ -79,9 +81,9 @@ class Progressor(Handler):
                         max_batch_index = batch_list.index(max(batch_list))
                         logger.debug(f'[progressor] epoch_size: {job.epoch_size}')
                         if max_epoch_index == max_batch_index:
-                            job.progress = saved_progress_dict[job.id] + (epoch_list[max_epoch_index] + batch_list[max_epoch_index]*1.0/job.epoch_size)
+                            job.progress = saved_progress_dict[job.uid] + (epoch_list[max_epoch_index] + batch_list[max_epoch_index]*1.0/job.epoch_size)
                         else:
-                            job.progress = saved_progress_dict[job.id] + (epoch_list[max_batch_index] + batch_list[max_batch_index] * 1.0 / job.epoch_size)
+                            job.progress = saved_progress_dict[job.uid] + (epoch_list[max_batch_index] + batch_list[max_batch_index] * 1.0 / job.epoch_size)
                 else:
                     sum1 = 0
                     sum2 = 0
@@ -139,7 +141,7 @@ class Progressor(Handler):
                 # whether job has been finished
                 if job.progress >= job.num_epochs:
                     # progress start from epoch 0
-                    job.status = "completed"
+                    job.status = 'completed'
                     job.end_slot = self.timer.get_clock()
                     job.end_time = time.time()
                     job.delete(True)
@@ -147,7 +149,7 @@ class Progressor(Handler):
                                      # of time slots: {job.end_slot - job.arrival_slot} \
                                      completion time: {job.end_time - job.arrival_time}')
                     self.running_jobs.remove(job)
-                    msg = Payload(self.timer.get_clock(), "progressor", "completion", {'job':job})
+                    msg = Payload(self.timer.get_clock(), 'progressor', 'completion', {'job':job})
                     hub.push(msg, 'scheduler')
                 else:
                     continue
@@ -175,5 +177,5 @@ class Progressor(Handler):
             self.num_running_tasks.append(num_tasks)
 
         # end of time slot
-        msg = Payload(self.timer.get_clock(), "progressor", "completion", None)
+        msg = Payload(self.timer.get_clock(), 'progressor', 'completion', None)
         hub.push(msg, 'scheduler')

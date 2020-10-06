@@ -1,87 +1,106 @@
-# import threading
-# import Queue
-# import time
+import os
 import sys
-# import os
+import time
+import signal
+import random
+import yaml
+from pathlib import Path
 
-import logger
-# from optimus_scheduler import UTIL_Scheduler
-# from generator import Generator
-# from hub import Hub
-# from progressor import Progressor
-# from timer import Timer
-# from statsor import Statsor
 import config
+from communication import Handler, Payload, hub
 from k8s.api import KubeAPI
-from zmq_queue import MessageRouter
+from log import logger
+from dl_job import DLJob
 
-logger = logging.getLogger(config.LOGGER_NAME)
 k8s_api = KubeAPI()
 
-# an event-driven experimentor
+def exit_gracefully(signum, frame):
+    hub.broadcast('stop')
+
+
+signal.signal(signal.SIGINT, exit_gracefully)
+signal.signal(signal.SIGTERM, exit_gracefully)
+
+class Simulator(Handler):
+    def __init__(self):
+        super().__init__(hub.connection, entity='simulator')
+        self.job_dict = dict()
+        self.counter = 0
+        self.module_name = 'simulator'
+        self.generate_jobs()
+        hub.push(Payload(None, self.module_name, 'reset'), 'timer')
+        self.start()
+
+    def stop(self):
+        super().stop()
+        logger.debug(f'[simulator] submitted {self.counter} jobs')
+        logger.debug(f'[simulator] exited.')
+
+    def __prepare_job_repo(self):
+        job_repo = list()
+        for filename in Path('job_repo').glob('*.yaml'):
+            with open(filename, 'r') as f:
+                job_repo.append(yaml.full_load(f))
+
+        return job_repo
+
+    def generate_jobs(self):
+        tic = time.time()
+        jobrepo = self.__prepare_job_repo()
+
+        random.seed(config.RANDOM_SEED)  # make each run repeatable
+
+        for i in range(config.TOT_NUM_JOBS):
+            # uniform randomly choose one
+            index = random.randint(0, len(jobrepo) - 1)
+            job_conf = jobrepo[index]
+            job = DLJob(i, index, os.getcwd(), job_conf)
+
+            # randomize job arrival time
+            t = random.randint(1, config.T)  # clock start from 1
+            job.arrival_slot = t
+            if job.arrival_slot in self.job_dict:
+                self.job_dict[job.arrival_slot].append(job)
+            else:
+                self.job_dict[job.arrival_slot] = [job]
+
+        toc = time.time()
+        logger.debug(f'[simulator] has generated {config.TOT_NUM_JOBS} jobs')
+        logger.debug(f'[simulator] time to generate jobs: {toc - tic:.3f} seconds.')
+
+
+    def submit_job(self, t):
+        # put jobs into queue
+        logger.info(f'-------*********-------- starting timeslot {t} --------*********-------')
+        if t in self.job_dict:
+            for job in self.job_dict[t]:
+                job.arrival_time = time.time()
+                msg = Payload(t, 'simulator', 'submission', {'job': job})
+                hub.push(msg, 'scheduler')  # enqueue jobs at the beginning of each time slot
+                self.counter += 1
+
+        # notify the scheduler that all jobs in this timeslot have been submitted
+        msg = Payload(t, 'simulator', 'submission', None)
+        hub.push(msg, 'scheduler')
+
+        if self.counter == config.TOT_NUM_JOBS:
+            logger.debug(f'[simulator] initiated stop')
+            hub.broadcast('stop')
+
+    def process(self, msg):
+        self.submit_job(msg.timestamp)
+
+
 def main():
-    k8s_api.clear_jobs()
+    sim = Simulator()
 
-    # tic = time.time()
-    my_logger.debug("experimentor" + ":: " + "scheduler: " + params.JOB_SCHEDULER)
-    # hub_queue = Queue.Queue()  # message hub
-    # timer_queue = Queue.Queue()
-    # scheduler_queue = Queue.Queue()
-    # progressor_queue = Queue.Queue()
-    # statsor_queue = Queue.Queue()
-
-    # # start each module in separate thread
-    # timer = Timer("timer", my_logger, hub_queue, timer_queue)
-    # hub = Hub("hub", my_logger, hub_queue, timer_queue, scheduler_queue, progressor_queue, statsor_queue)
-    msg_hub = MessageRouter()
-    # generator = Generator("generator", my_logger, hub_queue, timer)
-    # if params.JOB_SCHEDULER == "UTIL":
-    #     scheduler = UTIL_Scheduler("UTIL_Scheduler", my_logger, scheduler_queue, hub_queue, timer)
-    # else:
-    #     raise Exception
-    scheduler = 
-    # progressor = Progressor("progressor", my_logger, progressor_queue, hub_queue, timer)
-    # statsor = Statsor("statsor", my_logger, statsor_queue, hub_queue, timer, scheduler, progressor)
-
-    # # here determine whether all jobs have been finished
-    # my_logger.info("experimentor:: sleeping...")
-    # try:
-    #     while len(scheduler.completed_jobs) < params.TOT_NUM_JOBS:
-    #         time.sleep(params.MIN_SLEEP_UNIT)
-    # except:
-    #     my_logger.error("experimentor:: detect CTRL+C, exit. ")
-
-    # exit_flag = True
-
-    # timer.set_exit_flag(exit_flag)
-    # generator.set_exit_flag(exit_flag)
-    # scheduler.set_exit_flag(exit_flag)
-    # progressor.set_exit_flag(exit_flag)
-
-    # time.sleep(params.MIN_SLEEP_UNIT*100)  # wait for statsor
-    # statsor.set_exit_flag(exit_flag)
-    # hub.set_exit_flag(exit_flag)
-
-    # time.sleep(params.MIN_SLEEP_UNIT * 3000)  # wait other thread exit
-
-    # my_logger.debug("experimentor:: delete unfinished jobs...")
-    # thread_list = []
-    # for job in scheduler.uncompleted_jobs:
-    #     # job.delete(True)
-    #     del_thread = threading.Thread(target=(lambda job=job: job.delete(True)), args=())
-    #     del_thread.start()
-    #     thread_list.append(del_thread)
-    # for del_thread in thread_list:
-    #     del_thread.join()
-
-    # toc = time.time()
-    # my_logger.info("total experiment time: " + "%.3f"%(toc-tic) + " seconds")
-
-
+    # check for kill signal
+    signal.pause()
+    time.sleep(2)
 
 if __name__ == '__main__':
     if len(sys.argv) != 1:
-        print("Description: job scheduling experimentor")
-        print("Usage: python experimentor.py")
+        print("Description: job scheduling simulator")
+        print("Usage: python simulator.py")
         sys.exit(1)
     main()

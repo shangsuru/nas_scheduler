@@ -14,11 +14,14 @@ from statsor import Statsor
 
 k8s_api = KubeAPI()
 
+
 def exit_gracefully(signum, frame):
     hub.broadcast('stop')
 
+
 signal.signal(signal.SIGINT, exit_gracefully)
 signal.signal(signal.SIGTERM, exit_gracefully)
+
 
 def main():
     k8s_api.clear_jobs()
@@ -31,10 +34,10 @@ def main():
     progressor = Progressor(timer)
     statsor = Statsor(timer, scheduler, progressor, cluster)
 
-
-    #check for kill signal
+    # check for kill signal
     signal.pause()
-    time.sleep(4)
+    time.sleep(2)
+
 
 if __name__ == '__main__':
     if len(sys.argv) != 1:
