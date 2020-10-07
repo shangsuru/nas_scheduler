@@ -64,7 +64,7 @@ class KubeAPI:
         api_response = self.batch_v1.create_namespaced_job(
             body=job,
             namespace=config.k8s_params['namespace'])
-        logger.debug(f'[k8s_api] Job created. status={str(api_response.status)}')
+        logger.debug(f'[k8s_api] Job created. status={api_response.status}')
 
     def delete_job(self, name):
         api_response = self.batch_v1.delete_namespaced_job(

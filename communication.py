@@ -104,8 +104,8 @@ class Handler(threading.Thread, ConsumerMixin, metaclass=abc.ABCMeta):
         if body == 'stop':
             self.stop()
         else:
-            self.process(body)
             message.ack()
+            self.process(body)
 
     @abc.abstractmethod
     def process(self, msg):

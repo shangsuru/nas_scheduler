@@ -18,6 +18,7 @@ from log import logger
 
 k8s_api = KubeAPI()
 
+
 class DLJob():
     """Job class defines the structure of a DL training job.
 
@@ -30,6 +31,7 @@ class DLJob():
         dir (str): job working directory as in '{dir_prefix}/{name}-{timestamp}/}'
 
     """
+
     def __init__(self, uid, workload_id, dir_prefix, conf):
         """Initializes a job object.
         
@@ -203,12 +205,11 @@ class DLJob():
                 'batch_size': self.batch_sizes[j]
             }
             job = Job(name=self.name,
-                type='worker',
-                replica_id=j,
-                image=self.container.image,
-                job_conf={**job_conf_base, **worker_job_conf})
+                      type='worker',
+                      replica_id=j,
+                      image=self.container.image,
+                      job_conf={**job_conf_base, **worker_job_conf})
             jobs.append(job.k8s_job_obj)
-
 
         for j in range(self.resources.ps.num_ps):
             ps_job_conf = {
@@ -216,10 +217,10 @@ class DLJob():
                 'ps_placement': self.ps_placement[j]
             }
             job = Job(name=self.name,
-                    type='ps',
-                    replica_id=j,
-                    image=self.container.image,
-                    job_conf={**job_conf_base, **ps_job_conf})
+                      type='ps',
+                      replica_id=j,
+                      image=self.container.image,
+                      job_conf={**job_conf_base, **ps_job_conf})
             jobs.append(job.k8s_job_obj)
 
         return jobs
@@ -255,8 +256,8 @@ class DLJob():
         progress_fn = 'progress.txt'
 
         # create a new one each time, since the number of workers will change, hence the size of progress list
-        self.progress_list = [(0,0) for i in range(self.resources.worker.num_worker)]
-        self.val_loss_list = [(0,0) for i in range(self.resources.worker.num_worker)]
+        self.progress_list = [(0, 0) for i in range(self.resources.worker.num_worker)]
+        self.val_loss_list = [(0, 0) for i in range(self.resources.worker.num_worker)]
         thread_list = []
         for i in range(self.resources.worker.num_worker):
             node = self.worker_placement[i]
@@ -308,7 +309,7 @@ class DLJob():
             node = self.worker_placement[i]
             local_file = os.path.join(self.worker_mount_dirs[i], speed_fn)
 
-            cmd = 'ssh {node} "cat {local_file}"'
+            cmd = f'ssh {node} "cat {local_file}"'
 
             def run(self, cmd, i):
                 try:
@@ -318,15 +319,15 @@ class DLJob():
                     counter = 0
                     while output == '' or output is None:
                         output = subprocess.check_output(cmd, shell=True)
-                        time.sleep(0.001*(10**counter))
+                        time.sleep(0.001 * (10 ** counter))
                         counter = counter + 1
                         if counter > 2:
-                            logger.error("Job:: " + "_read_training_speed: read training speed timeout.")
+                            logger.error('Job::_read_training_speed: read training speed timeout.')
                             return
                     stb_speed = float(output.replace('\n', '').split(' ')[1])
-                    self.speed_list[i] = float('%.3f'%(stb_speed))
+                    self.speed_list[i] = float('%.3f' % stb_speed)
                 except Exception as e:
-                    logger.error("Job:: " + "_read_training_speed: " + str(e))
+                    logger.error(f'Job::_read_training_speed: {str(e)}')
 
             thread = threading.Thread(target=run, args=(self, cmd, i))
             thread.start()
@@ -360,13 +361,13 @@ class DLJob():
         self.__get_pods_names()
 
         # get heapster cluster ip
-        heapster_service = k8s_api.get_services('kube-system', field_selector={'metadata.name':'heapster'})[0]
+        heapster_service = k8s_api.get_services('kube-system', field_selector={'metadata.name': 'heapster'})[0]
         heapster_cluster_ip = utils.rgetattr(heapster_service, 'spec.cluster_ip')
-  
+
         self.ps_metrics = []
         self.worker_metrics = []
 
-        #TODO: heapster is deprecated, we need to move to metrics API
+        # TODO: heapster is deprecated, we need to move to metrics API
         # cpu: milli core, mem: bytes, net: bytes/second
         metric_keys = ['cpu/usage_rate', 'memory/usage', 'network/tx_rate', 'network/rx_rate']
         for pod in (self.ps_pods + self.worker_pods):
@@ -390,9 +391,8 @@ class DLJob():
         """Get job metrics
         """
         self._read_metrics()
-        return (list(self.ps_metrics), list(self.worker_metrics))
+        return list(self.ps_metrics), list(self.worker_metrics)
 
-    
     def start(self):
         """Start the job in k8s, with these steps:
             - Creating job directory
@@ -407,7 +407,8 @@ class DLJob():
         os.makedirs(self.dir)
 
         self.ps_mount_dirs = self.__set_mount_dirs('ps', self.data.host_workdir_prefix)  # ps container mount
-        self.worker_mount_dirs = self.__set_mount_dirs('worker', self.data.host_workdir_prefix)  # worker container mount
+        self.worker_mount_dirs = self.__set_mount_dirs('worker',
+                                                       self.data.host_workdir_prefix)  # worker container mount
         self.__set_batch_size()
 
         self.running_tasks = self._create_jobs()
@@ -429,9 +430,8 @@ class DLJob():
         # shutdown job in k8s
         thread_list = []
         for task in self.running_tasks:
-            #TODO: self.name for k8s task name? maybe wrong?
-            task_name = self.name
-            thread = threading.Thread(target=(lambda name=task_name: k8s_api.delete_job(name)), args=())
+            # TODO: self.name for k8s task name? maybe wrong?
+            thread = threading.Thread(target=(lambda name=task.uname: k8s_api.delete_job(name)), args=())
             thread.start()
             thread_list.append(thread)
 
