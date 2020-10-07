@@ -11,7 +11,7 @@ class SchedulerBase(Handler, metaclass=abc.ABCMeta):
     def __init__(self, cluster, timer):
         super().__init__(connection=hub.connection, entity='scheduler')
 
-        self.module_name = 'scheduler'
+        self.module_name = 'scheduler_base'
         self.timer = timer
         self.cluster = cluster
         self.allocator: DefaultAllocator
@@ -91,13 +91,13 @@ class SchedulerBase(Handler, metaclass=abc.ABCMeta):
                 job.status = 'running'
 
                 # send message to progressor
-                msg = Payload(self.timer.get_clock(), 'scheduler', 'running', {'job':job})
+                msg = Payload(self.timer.get_clock(), 'scheduler', 'running', {'job': job})
                 hub.push(msg, 'progressor')
             else:
                 job.status = 'pending'
 
                 # send message to progressor
-                msg = Payload(self.timer.get_clock(), 'scheduler', 'pending', {'job':job})
+                msg = Payload(self.timer.get_clock(), 'scheduler', 'pending', {'job': job})
                 hub.push(msg, 'progressor')
 
         for thread in thread_list:
