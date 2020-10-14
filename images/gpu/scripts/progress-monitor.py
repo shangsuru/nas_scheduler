@@ -48,7 +48,7 @@ def update_progress(logfile, recordfile):
 
         with open(logfile, 'r') as f:
             for i in range(line_number):
-                f.next()
+                f.readline()
             for line in f:
                 line_number += 1
 
@@ -59,9 +59,10 @@ def update_progress(logfile, recordfile):
                     epoch = int(line[line.find("[", epoch_index) + 1 : line.find("]", epoch_index)])
 
                     # batch
+                    # TODO batches are now grouped
                     batch_index = line.find('Batch')
                     if batch_index > -1:
-                        batch = int(line[line.find("[", batch_index) + 1: line.find("]", batch_index)])
+                        batch = int(line[line.find("[", batch_index) + 1: line.find("-", batch_index)])
                     else:
                         batch = -1 # the end of this epoch
                     # train-acc

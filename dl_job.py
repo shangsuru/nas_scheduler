@@ -177,9 +177,9 @@ class DLJob():
             'script': self.container.init_script,
             'prog': self.envs.prog_cmd,
             'work_dir': self.data.work_dir,
-            'work_volume': self.data.work_volume,
+            'work_volume': 'k8s-mxnet-work-volume',
             'data_dir': self.data.data_dir,
-            'data_volume': self.data.data_volume,
+            'data_volume': 'k8s-mxnet-data-volume',
 
             'host_data_dir': self.data.host_data_dir,
 
@@ -200,7 +200,7 @@ class DLJob():
         jobs = []
         for j in range(self.resources.worker.num_worker):
             worker_job_conf = {
-                'worker_mount_dirs': self.worker_mount_dirs[j],
+                'host_mount_dir': self.worker_mount_dirs[j],
                 'worker_placement': self.worker_placement[j],
                 'batch_size': self.batch_sizes[j]
             }
@@ -209,11 +209,11 @@ class DLJob():
                       replica_id=j,
                       image=self.container.image,
                       job_conf={**job_conf_base, **worker_job_conf})
-            jobs.append(job.k8s_job_obj)
+            jobs.append(job)
 
         for j in range(self.resources.ps.num_ps):
             ps_job_conf = {
-                'ps_mount_dirs': self.ps_mount_dirs[j],
+                'host_mount_dir': self.ps_mount_dirs[j],
                 'ps_placement': self.ps_placement[j]
             }
             job = Job(name=self.name,
@@ -221,7 +221,7 @@ class DLJob():
                       replica_id=j,
                       image=self.container.image,
                       job_conf={**job_conf_base, **ps_job_conf})
-            jobs.append(job.k8s_job_obj)
+            jobs.append(job)
 
         return jobs
 
@@ -324,7 +324,7 @@ class DLJob():
                         if counter > 2:
                             logger.error('Job::_read_training_speed: read training speed timeout.')
                             return
-                    stb_speed = float(output.replace('\n', '').split(' ')[1])
+                    stb_speed = float(output.decode("utf-8").replace('\n', '').split(' ')[1])
                     self.speed_list[i] = float('%.3f' % stb_speed)
                 except Exception as e:
                     logger.error(f'Job::_read_training_speed: {str(e)}')
@@ -406,9 +406,8 @@ class DLJob():
         # job working dir on host
         os.makedirs(self.dir)
 
-        self.ps_mount_dirs = self.__set_mount_dirs('ps', self.data.host_workdir_prefix)  # ps container mount
-        self.worker_mount_dirs = self.__set_mount_dirs('worker',
-                                                       self.data.host_workdir_prefix)  # worker container mount
+        self.ps_mount_dirs = self.__set_mount_dirs('ps', self.data.host_workdir_prefix) # ps container mount
+        self.worker_mount_dirs = self.__set_mount_dirs('worker', self.data.host_workdir_prefix) # worker container mount
         self.__set_batch_size()
 
         self.running_tasks = self._create_jobs()
@@ -418,7 +417,7 @@ class DLJob():
 
         # start pods in k8s. equivalent to microk8s kubectl create -f jobs.yaml
         for job in self.running_tasks:
-            k8s_api.submit_job(job)
+            k8s_api.submit_job(job.k8s_job_obj)
 
     def delete(self, del_all=False):
         """Delete the job.

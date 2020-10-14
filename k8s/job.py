@@ -62,7 +62,7 @@ class Job():
             client.V1Container(
                 name=self.name,
                 image=self.image,
-                image_pull_policy='IfNotPresent',
+                image_pull_policy='Always',
                 command=["/bin/bash"],
                 args=["/init.sh"],
                 env=self.__create_envs(),
@@ -77,11 +77,11 @@ class Job():
             client.V1Volume(
                 name=self.conf.get('work_volume'),
                 #TODO: fix the mount dir (ps, worker)?
-                host_path=client.V1HostPathVolumeSource(path=self.conf.get('work_dir'))),
+                host_path=client.V1HostPathVolumeSource(path=self.conf.get('host_mount_dir'))),
             client.V1Volume(
                 name=self.conf.get('data_volume'),
                 #TODO: fix the mount dir (ps, worker)?
-                host_path=client.V1HostPathVolumeSource(path=self.conf.get('data_dir'))),
+                host_path=client.V1HostPathVolumeSource(path=self.conf.get('host_data_dir'))),
             client.V1Volume(
                 name='nvidia-lib',
                 #TODO: fix the nvidia path
