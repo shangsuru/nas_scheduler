@@ -44,7 +44,7 @@ def update_speed(logfile, recordfile):
         # Epoch[1] Batch [70]	Speed: 1.08 samples/sec	accuracy=0.000000
         with open(logfile, 'r') as f:
             for i in range(line_number):
-                f.next()
+                f.readline()
             for line in f:
                 line_number += 1
 

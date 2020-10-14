@@ -209,7 +209,7 @@ class DLJob():
                       replica_id=j,
                       image=self.container.image,
                       job_conf={**job_conf_base, **worker_job_conf})
-            jobs.append(job.k8s_job_obj)
+            jobs.append(job)
 
         for j in range(self.resources.ps.num_ps):
             ps_job_conf = {
@@ -221,7 +221,7 @@ class DLJob():
                       replica_id=j,
                       image=self.container.image,
                       job_conf={**job_conf_base, **ps_job_conf})
-            jobs.append(job.k8s_job_obj)
+            jobs.append(job)
 
         return jobs
 
@@ -324,7 +324,7 @@ class DLJob():
                         if counter > 2:
                             logger.error('Job::_read_training_speed: read training speed timeout.')
                             return
-                    stb_speed = float(output.replace('\n', '').split(' ')[1])
+                    stb_speed = float(output.decode("utf-8").replace('\n', '').split(' ')[1])
                     self.speed_list[i] = float('%.3f' % stb_speed)
                 except Exception as e:
                     logger.error(f'Job::_read_training_speed: {str(e)}')
@@ -417,7 +417,7 @@ class DLJob():
 
         # start pods in k8s. equivalent to microk8s kubectl create -f jobs.yaml
         for job in self.running_tasks:
-            k8s_api.submit_job(job)
+            k8s_api.submit_job(job.k8s_job_obj)
 
     def delete(self, del_all=False):
         """Delete the job.

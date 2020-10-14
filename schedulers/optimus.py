@@ -14,8 +14,10 @@ from allocators.default_allocator import DefaultAllocator
 
 from log import logger
 
+
 class OptimusEstimator():
     def __init__(self, cluster):
+        self.module_name = 'optimus_estimator'
         self.cluster = cluster
         self.exit_event = threading.Event()
         self.existing_jobs = []
@@ -40,7 +42,7 @@ class OptimusEstimator():
 
         for job in jobs:
             placements[job.uid] = []
-            for i in range(job.resources.ps.num_ps): # place each bundle
+            for i in range(job.resources.ps.num_ps):  # place each bundle
                 # random placement
                 cpu_req = job.resources.worker.worker_cpu + job.resources.ps.ps_cpu
                 mem_req = job.resources.worker.worker_mem + job.resources.ps.ps_mem
@@ -52,9 +54,9 @@ class OptimusEstimator():
                     node_index = (cur_node_index + j) % self.cluster.num_nodes
                     suff_resr = True
                     if node_used_cpu_list[node_index] + cpu_req > config.CPU_PER_NODE or \
-                       node_used_mem_list[node_index] + mem_req > config.MEM_PER_NODE or \
-                       node_used_bw_list[node_index] + bw_req > config.BW_PER_NODE or \
-                       node_used_gpu_list[node_index] + gpu_req > config.GPU_PER_NODE:
+                            node_used_mem_list[node_index] + mem_req > config.MEM_PER_NODE or \
+                            node_used_bw_list[node_index] + bw_req > config.BW_PER_NODE or \
+                            node_used_gpu_list[node_index] + gpu_req > config.GPU_PER_NODE:
                         suff_resr = False
                         continue
 
@@ -80,7 +82,8 @@ class OptimusEstimator():
 
     def _run(self, job, placement):
         # set placement
-        logger.debug(f'[optimus_estimator] {job.name}, num_ps: {job.resources.ps.num_ps}, num_worker: {job.resources.worker.num_worker}, placement: {placement}')
+        logger.debug(f'[{self.module_name}] {job.name}, num_ps: {job.resources.ps.num_ps}, num_worker: \
+                        {job.resources.worker.num_worker}, placement: {placement}')
         job.resources.ps.num_ps = len(placement)
         job.resources.worker.worker = job.resources.ps.num_ps
         job.set_ps_placement(placement)
@@ -89,16 +92,16 @@ class OptimusEstimator():
         job.start()
 
     def test_speed(self, new_jobs):
-        logger.debug(f'[optimus_estimator] start testing training speed for {len(new_jobs)} jobs...')
+        logger.debug(f'[{self.module_name}] start testing training speed for {len(new_jobs)} jobs...')
 
         tic = time.time()
 
         # little improvement: if two jobs are of the same type, they can reuse the training speed points
         for existing_job in self.existing_jobs:
             for new_job in new_jobs:
-                if existing_job.workload_id == new_job.workload_id: # same type of job
+                if existing_job.workload_id == new_job.workload_id:  # same type of job
                     for key, value in existing_job.training_speeds.items():
-                        if key in new_job.training_speeds: # simply average
+                        if key in new_job.training_speeds:  # simply average
                             new_job.training_speeds[key] = (new_job.training_speeds[key] + value) / 2
                         else:
                             new_job.training_speeds[key] = value
@@ -109,13 +112,13 @@ class OptimusEstimator():
             # less test speed, higher priority
             collected = True
             for job in new_jobs:
-                if len(job.training_speeds) < 8: # collect 8 points
+                if len(job.training_speeds) < 8:  # collect 8 points
                     collected = False
                     break
 
             if collected:
                 # all job has collected 5 points
-                logger.info("[optimus_estimator] No need to test speed, all jobs are known workload.")
+                logger.info(f'[{self.module_name}] No need to test speed, all jobs are known workload.')
                 break
             else:
                 # at least one job does not have 5 speed points
@@ -131,7 +134,8 @@ class OptimusEstimator():
                 while True:
                     job.resources.worker.num_worker = random.randint(1, 10)
                     job.resources.ps.num_ps = job.resources.worker.num_worker
-                    if (job.resources.ps.num_ps, job.resources.worker.num_worker) in job.training_speeds: # avoid repetition
+                    if (job.resources.ps.num_ps,
+                        job.resources.worker.num_worker) in job.training_speeds:  # avoid repetition
                         # will cause infinite loop if job already has 10 points
                         continue
                     else:
@@ -139,7 +143,7 @@ class OptimusEstimator():
                         break
 
             counter += 1
-            logger.debug(f'[optimus_estimator] No.{counter} time, collecting speed points...')
+            logger.debug(f'[{self.module_name}] No.{counter} time, collecting speed points...')
 
             placements = self._test_placement(sorted_jobs)
             running_jobs = []
@@ -151,17 +155,17 @@ class OptimusEstimator():
                     thread = threading.Thread(target=self._run, args=(job, placement,))
                     thread.start()
                     threads.append(thread)
-                    # multiple concurrent job startings may cause congestion
+                    # multiple concurrent job starting may cause congestion
                     time.sleep(3)
                 else:
-                    logger.debug(f'[optimus_scheduler] {job.name} does not get resources to test speed')
+                    logger.debug(f'[{self.module_name}] {job.name} does not get resources to test speed')
 
             for thread in threads:
                 thread.join()
 
             # sleep one minute to get training speed (better 5 mins, but may cost much time)
             if len(running_jobs) > 0:
-                if self.exit_event.wait(60*3):
+                if self.exit_event.wait(60 * 3):
                     sys.exit()
 
             # read training speed, if no, sleep more
@@ -170,19 +174,20 @@ class OptimusEstimator():
                 while flag:
                     speed_list = job.get_training_speed()
                     if min(speed_list) > 0:
-                        job.training_speeds[(job.resources.ps.num_ps, job.resources.worker.num_worker)] = sum(speed_list) / int(job.tot_batch_size)  # batches/second
+                        job.training_speeds[(job.resources.ps.num_ps, job.resources.worker.num_worker)] = sum(
+                            speed_list) / int(job.metadata.batch_size)  # batches/second
                         job.delete(True)
                         flag = False
                     else:
-                        logger.debug(f'[optimus_scheduler] did not get speed from job {job.name}, {speed_list}, sleep and try again later.')
+                        logger.debug(f'[{self.module_name}] did not get speed from job {job.name}, {speed_list}, sleep and try again later.')
                         if self.exit_event.wait(10):
                             sys.exit()
 
             for job in new_jobs:
-                logger.debug(f'[optimus_scheduler] {job.name}: {job.training_speeds}')
+                logger.debug(f'[{self.module_name}] {job.name}: {job.training_speeds}')
 
         toc = time.time()
-        logger.info(f'[optimus_scheduler] time cost of collecting speed points: {(toc - tic):.3f} seconds')
+        logger.info(f'[{self.module_name}] time cost of collecting speed points: {(toc - tic):.3f} seconds')
         # clear modifications
         for job in new_jobs:
             job.resources.ps.num_ps = 0
@@ -191,13 +196,12 @@ class OptimusEstimator():
             job.set_worker_placement([])
         return
 
-
     '''
     --------------Below is completion epoch estimation----------------
     '''
 
     def __loss_fit_func(self, x, a, b, c):
-        return 1/(a*(x)+b) + c
+        return 1 / (a * (x) + b) + c
 
     def _loss_curve_fitting(self, epochs_arr, losses_arr):
         param_bounds = ([0, 0, 0], [np.inf, np.inf, np.inf])
@@ -206,7 +210,7 @@ class OptimusEstimator():
         sigma = np.ones(len(epochs_arr))
         NUM_SEGMENTS = 3
         for i in range(len(epochs_arr)):
-            exp = int(math.floor(i/(math.ceil(1.0*len(epochs_arr)/NUM_SEGMENTS))))
+            exp = int(math.floor(i / (math.ceil(1.0 * len(epochs_arr) / NUM_SEGMENTS))))
             sigma[i] /= 4 ** exp
 
         params = curve_fit(self.__loss_fit_func, epochs_arr, losses_arr, sigma=np.array(sigma), absolute_sigma=False,
@@ -214,13 +218,13 @@ class OptimusEstimator():
         return params[0]
 
     def est_epoch(self, job):
-        if job.num_epochs < sys.maxint:
+        if job.num_epochs < sys.maxsize:
             return job.num_epochs
 
         existing_epochs = []
         for existing_job in self.existing_jobs:
-            if existing_job.workload_id == job.workload_id: # same type of job
-                if existing_job.num_epochs < sys.maxint:
+            if existing_job.workload_id == job.workload_id:  # same type of job
+                if existing_job.num_epochs < sys.maxsize:
                     existing_epochs.append(existing_job.num_epochs)
 
         if len(existing_epochs) > 0:
@@ -238,9 +242,10 @@ class OptimusEstimator():
                 # we do not need curve fitting each time, can be further optimized in future
                 # also, we can get loss data from previous jobs, optimized in future
                 try:
-                    [a, b, c] = self._loss_curve_fitting(np.array(epoch_list), np.array(loss_list))  # could throw exception since the loss may not descend at the beginning
+                    [a, b, c] = self._loss_curve_fitting(np.array(epoch_list), np.array(
+                        loss_list))  # could throw exception since the loss may not descend at the beginning
                 except Exception as e:
-                    logger.error(f'loss curve fitting error: {e}')
+                    logger.error(f'[{self.module_name}] loss curve fitting error: {e}')
                     return -1
                 # if loss does not change a lot for a certain period, converge.
                 epoch = max(0, int(job.progress) - config.LOSS_LITTLE_CHANGE_EPOCH_NUM)
@@ -262,7 +267,6 @@ class OptimusEstimator():
             else:
                 return -1
 
-
     '''
     --------------Below is speed estimation------------
     '''
@@ -276,10 +280,11 @@ class OptimusEstimator():
         param_bounds = ([0, 0, 0, 0], [np.inf, np.inf, np.inf, np.inf])
         sigma = np.ones(len(ps_arr))
         try:
-            params = curve_fit(self.__async_speed_fit_func, (ps_arr, worker_arr), speed_arr, sigma=np.array(sigma), absolute_sigma=False, bounds=param_bounds)
+            params = curve_fit(self.__async_speed_fit_func, (ps_arr, worker_arr), speed_arr, sigma=np.array(sigma),
+                               absolute_sigma=False, bounds=param_bounds)
             return params[0]
         except Exception as e:
-            self.logger.error(str(e))
+            logger.error(str(e))
 
     def __sync_speed_fit_func(self, X, a, b, c, d, e):
         p, w, batch_size = X
@@ -290,10 +295,11 @@ class OptimusEstimator():
         param_bounds = ([0, 0, 0, 0, 0], [np.inf, np.inf, np.inf, np.inf, np.inf])
         sigma = np.ones(len(ps_arr))
         try:
-            params = curve_fit(self.__sync_speed_fit_func, (ps_arr, worker_arr, batch_arr), speed_arr, sigma=np.array(sigma), absolute_sigma=False, bounds=param_bounds)
+            params = curve_fit(self.__sync_speed_fit_func, (ps_arr, worker_arr, batch_arr), speed_arr,
+                               sigma=np.array(sigma), absolute_sigma=False, bounds=param_bounds)
             return params[0]
         except Exception as e:
-            self.logger.error(self.name + ":: " + "curve fitting error, " + str(e))
+            logger.error(f'[{self.module_name}] curve fitting error, {str(e)}')
 
     def est_speed(self, job, num_ps, num_worker):
         """Give the number of ps and the number of worker, predict the training speed.
@@ -314,9 +320,10 @@ class OptimusEstimator():
                         ps_list.append(float(ps))
                         worker_list.append(float(worker))
                         speed_list.append(value)
-                    params = self._async_speed_curve_fitting(np.array(ps_list), np.array(worker_list), np.array(speed_list))
+                    params = self._async_speed_curve_fitting(np.array(ps_list), np.array(worker_list),
+                                                             np.array(speed_list))
                     if params is None:
-                        self.logger.error(self.name+":: " + job.name + " " + str((num_ps, num_worker)) + " speed estimation error")
+                        logger.error(f'[{self.module_name}] {job.name} {str((num_ps, num_worker))} speed estimation error')
                         return -1
                     else:
                         [a, b, c, d] = params
@@ -331,15 +338,16 @@ class OptimusEstimator():
                         ps_list.append(float(ps))
                         worker_list.append(float(worker))
                         speed_list.append(value)
-                    batch_size_list = [float(job.tot_batch_size) for i in range(len(ps_list))]
+                    batch_size_list = [float(job.metadata.batch_size) for i in range(len(ps_list))]
                     params = self._sync_speed_curve_fitting(np.array(ps_list), np.array(worker_list),
-                                                             np.array(batch_size_list), np.array(speed_list))
+                                                            np.array(batch_size_list), np.array(speed_list))
                     if params is None:
-                        logger.error(f'[optimus_estimator] {job.name} {(num_ps, num_worker)} speed estimation error')
+                        logger.error(f'[{self.module_name}] {job.name} {(num_ps, num_worker)} speed estimation error')
                         return -1
                     else:
                         [a, b, c, d, e] = params
-                        est_speed = self.__sync_speed_fit_func((num_ps, num_worker, float(job.tot_batch_size)), a, b, c, d, e)
+                        est_speed = self.__sync_speed_fit_func((num_ps, num_worker, float(job.metadata.batch_size)), a, b, c,
+                                                               d, e)
                         return est_speed
                 else:
                     return -1
@@ -370,7 +378,7 @@ class OptimusScheduler(SchedulerBase):
             job (DLJob): job instance
             util_queue (PriorityQueue): a queue based on job utility
         """
-        
+
         end_epoch = self.estimator.est_epoch(job)
         if end_epoch <= 0:
             # error when estimating epoch
@@ -379,7 +387,7 @@ class OptimusScheduler(SchedulerBase):
         rem_epoch = end_epoch - job.progress  # the rem_epoch is negative if estimated epoch return -1
         est_speed = self.estimator.est_speed(job, job.resources.ps.num_ps, job.resources.worker.num_worker)
         logger.debug(f'[{self.module_name}] estimated speed: {est_speed}')
-        
+
         if est_speed <= 0:
             self.not_ready_jobs.add(job)
             return
@@ -391,10 +399,11 @@ class OptimusScheduler(SchedulerBase):
             return
         ps_rem_time = rem_epoch / est_speed
         resource_reqs = (job.resources.ps.ps_cpu, job.resources.ps.ps_mem, job.resources.ps.ps_bw)
-        shares = (1.0 * job.resources.ps.ps_cpu / self.cluster.num_cpu, 1.0 * job.resources.ps.ps_mem / self.cluster.num_mem,
-                  1.0 * job.resources.ps.ps_bw / self.cluster.num_bw)
+        shares = (
+        1.0 * job.resources.ps.ps_cpu / self.cluster.num_cpu, 1.0 * job.resources.ps.ps_mem / self.cluster.num_mem,
+        1.0 * job.resources.ps.ps_bw / self.cluster.num_bw)
         dom_res = shares.index(max(shares))
-        ps_util = (rem_time - ps_rem_time)/ resource_reqs[dom_res]
+        ps_util = (rem_time - ps_rem_time) / resource_reqs[dom_res]
 
         # if add worker 1
         est_speed = self.estimator.est_speed(job, job.resources.ps.num_ps, job.resources.worker.num_worker + 1)
@@ -402,9 +411,13 @@ class OptimusScheduler(SchedulerBase):
             self.not_ready_jobs.add(job)
             return
         worker_rem_time = rem_epoch / est_speed
-        resource_reqs = (job.resources.worker.worker_cpu, job.resources.worker.worker_mem, job.resources.worker.worker_bw, job.resources.worker.worker_gpu)
-        shares = (1.0 * job.resources.worker.worker_cpu / self.cluster.num_cpu, 1.0 * job.resources.worker.worker_mem / self.cluster.num_mem,
-                  1.0 * job.resources.worker.worker_bw / self.cluster.num_bw, 1.0 * job.resources.worker.worker_gpu / self.cluster.num_gpu)
+        resource_reqs = (
+        job.resources.worker.worker_cpu, job.resources.worker.worker_mem, job.resources.worker.worker_bw,
+        job.resources.worker.worker_gpu)
+        shares = (1.0 * job.resources.worker.worker_cpu / self.cluster.num_cpu,
+                  1.0 * job.resources.worker.worker_mem / self.cluster.num_mem,
+                  1.0 * job.resources.worker.worker_bw / self.cluster.num_bw,
+                  1.0 * job.resources.worker.worker_gpu / self.cluster.num_gpu)
         dom_res = shares.index(max(shares))
 
         worker_util = (rem_time - worker_rem_time) / resource_reqs[dom_res]
@@ -413,7 +426,6 @@ class OptimusScheduler(SchedulerBase):
             util_queue.put((-ps_util, job.arrival_time, job, "ps"))
         else:
             util_queue.put((-worker_util, job.arrival_time, job, "worker"))
-
 
     def _schedule(self):
         # first collect speed data points
@@ -511,7 +523,3 @@ class OptimusScheduler(SchedulerBase):
 
         toc = time.time()
         logger.debug(f'[{self.module_name}] scheduling time: {(toc - tic):.3f} seconds.')
-
-        
-
-
