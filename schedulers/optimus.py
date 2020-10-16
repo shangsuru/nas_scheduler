@@ -112,7 +112,7 @@ class OptimusEstimator():
             # less test speed, higher priority
             collected = True
             for job in new_jobs:
-                if len(job.training_speeds) < 8:  # collect 8 points
+                if len(job.training_speeds) < self.cluster.num_nodes:  # collect [1, num_nodes) points
                     collected = False
                     break
 
@@ -123,6 +123,7 @@ class OptimusEstimator():
             else:
                 # at least one job does not have 5 speed points
                 for job in new_jobs:
+                    job.name = f'{job.name}-optimus-estimator-t{counter}'
                     q.put((len(job.training_speeds), job))
 
             sorted_jobs = []
@@ -132,7 +133,7 @@ class OptimusEstimator():
                     continue
                 # determine number of ps and number of worker
                 while True:
-                    job.resources.worker.num_worker = random.randint(1, 10)
+                    job.resources.worker.num_worker = random.randint(1, self.cluster.num_nodes)
                     job.resources.ps.num_ps = job.resources.worker.num_worker
                     if (job.resources.ps.num_ps,
                         job.resources.worker.num_worker) in job.training_speeds:  # avoid repetition
@@ -163,9 +164,9 @@ class OptimusEstimator():
             for thread in threads:
                 thread.join()
 
-            # sleep one minute to get training speed (better 5 mins, but may cost much time)
+            # sleep 1.5 minute to get training speed (better 5 mins, but may cost much time)
             if len(running_jobs) > 0:
-                if self.exit_event.wait(60 * 3):
+                if self.exit_event.wait(90):
                     sys.exit()
 
             # read training speed, if no, sleep more
@@ -190,6 +191,7 @@ class OptimusEstimator():
         logger.info(f'[{self.module_name}] time cost of collecting speed points: {(toc - tic):.3f} seconds')
         # clear modifications
         for job in new_jobs:
+            job.name = job.name.split('-optimus-estimator')[0]
             job.resources.ps.num_ps = 0
             job.set_ps_placement([])
             job.resources.worker.num_worker = 0
@@ -312,7 +314,7 @@ class OptimusEstimator():
             ps_list = []
             worker_list = []
             speed_list = []
-            if 'async' in job.kv_store:
+            if 'async' in job.envs.kv_store:
                 if len(job.training_speeds) >= 4:
                     # do not need curve fitting each time, can be further optimized. future work
                     for key, value in job.training_speeds.items():
@@ -331,7 +333,7 @@ class OptimusEstimator():
                         return est_speed
                 else:
                     return -1
-            elif 'sync' in job.kv_store:
+            elif 'sync' in job.envs.kv_store:
                 if len(job.training_speeds) >= 5:
                     for key, value in job.training_speeds.items():
                         (ps, worker) = key
@@ -389,13 +391,15 @@ class OptimusScheduler(SchedulerBase):
         logger.debug(f'[{self.module_name}] estimated speed: {est_speed}')
 
         if est_speed <= 0:
-            self.not_ready_jobs.add(job)
+            if job not in self.not_ready_jobs:
+                self.not_ready_jobs.append(job)
             return
         rem_time = rem_epoch / est_speed
 
-        est_speed = self.estimator.est_speed(job, job.resources.ps.num_ps + 1, job.num_worker)
+        est_speed = self.estimator.est_speed(job, job.resources.ps.num_ps + 1, job.resources.worker.num_worker)
         if est_speed <= 0:
-            self.not_ready_jobs.add(job)
+            if job not in self.not_ready_jobs:
+                self.not_ready_jobs.append(job)
             return
         ps_rem_time = rem_epoch / est_speed
         resource_reqs = (job.resources.ps.ps_cpu, job.resources.ps.ps_mem, job.resources.ps.ps_bw)
@@ -408,7 +412,8 @@ class OptimusScheduler(SchedulerBase):
         # if add worker 1
         est_speed = self.estimator.est_speed(job, job.resources.ps.num_ps, job.resources.worker.num_worker + 1)
         if est_speed <= 0:
-            self.not_ready_jobs.add(job)
+            if job not in self.not_ready_jobs:
+                self.not_ready_jobs.append(job)
             return
         worker_rem_time = rem_epoch / est_speed
         resource_reqs = (
@@ -457,15 +462,15 @@ class OptimusScheduler(SchedulerBase):
 
         # allocate each job a worker and a server to avoid starvation
         for job in self.uncompleted_jobs:
-            cpu_req = job.worker_cpu + job.ps_cpu
-            mem_req = job.worker_mem + job.ps_mem
-            bw_req = job.worker_bw + job.ps_bw
-            gpu_req = job.worker_gpu
+            cpu_req = job.resources.worker.worker_cpu + job.resources.ps.ps_cpu
+            mem_req = job.resources.worker.worker_mem + job.resources.ps.ps_mem
+            bw_req = job.resources.worker.worker_bw + job.resources.ps.ps_bw
+            gpu_req = job.resources.worker.worker_gpu
 
             suff_resr = self.cluster.check_cluster_resource_full(cpu_req, mem_req, bw_req, gpu_req)
             if suff_resr:
-                job.num_worker = 1
-                job.num_ps = 1
+                job.resources.worker.num_worker = 1
+                job.resources.ps.num_ps = 1
                 self.cluster.used_cpu += cpu_req
                 self.cluster.used_mem += mem_req
                 self.cluster.used_bw += bw_req
@@ -485,24 +490,24 @@ class OptimusScheduler(SchedulerBase):
                 # must be negative
                 break
             if task_type == "ps":
-                cpu_req = job.ps_cpu
-                mem_req = job.ps_mem
-                bw_req = job.ps_bw
+                cpu_req = job.resources.ps.ps_cpu
+                mem_req = job.resources.ps.ps_mem
+                bw_req = job.resources.ps.ps_bw
                 gpu_req = 0
             elif task_type == "worker":
-                cpu_req = job.worker_cpu
-                mem_req = job.worker_mem
-                bw_req = job.worker_bw
-                gpu_req = job.worker_gpu
+                cpu_req = job.resources.worker.worker_cpu
+                mem_req = job.resources.worker.worker_mem
+                bw_req = job.resources.worker.worker_bw
+                gpu_req = job.resources.worker.worker_gpu
 
             # check whether resources are sufficient
             suff_resr = self.cluster.check_cluster_resource_full(cpu_req, mem_req, bw_req, gpu_req)
             if suff_resr:
                 # currently no mechanism to reduce resources
                 if task_type == "ps":
-                    job.num_ps += 1
+                    job.resources.ps.num_ps += 1
                 elif task_type == "worker":
-                    job.num_worker += 1
+                    job.resources.worker.num_worker += 1
                 self.cluster.used_cpu += cpu_req
                 self.cluster.used_mem += mem_req
                 self.cluster.used_bw += bw_req
@@ -512,12 +517,14 @@ class OptimusScheduler(SchedulerBase):
             else:
                 # no enough resource
                 break
-        # how to handle not_ready_jobs
+
+        # TODO: how to handle not_ready_jobs
         logger.debug(f'[{self.module_name}] not ready jobs: {self.not_ready_jobs}')
 
         # check the scheduling result
         for job in self.uncompleted_jobs:
-            logger.debug(f'[{self.module_name}] scheduling results | num_ps:{job.num_ps}, num_worker:{job.num_worker}')
+            logger.debug(f'[{self.module_name}] scheduling results | num_ps:{job.resources.ps.num_ps}, \
+            num_worker:{job.resources.worker.num_worker}')
 
         # how to handle remaining resources? Due to error sometimes allocating resource can still increase speed
 

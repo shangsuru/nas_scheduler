@@ -3,7 +3,7 @@ metadata:
   modelname: mlp
   batch_size: 32
   scale_bs: True
-  num_examples: 0
+  num_examples: 60000
 
 envs:
   kv_store_big_array_bound: '1000000'
