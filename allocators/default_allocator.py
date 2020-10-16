@@ -10,6 +10,13 @@ class DefaultAllocator(ResourceAllocator):
     def __init__(self, cluster):
         super().__init__(cluster)
 
+    def free_job_resources(self, job):
+        for node in job.ps_placement:
+            self.cluster.free_resources(job, "ps", 1, self.cluster.get_node_index(node))
+        for node in job.worker_placement:
+            self.cluster.free_resources(job, "worker", 1, self.cluster.get_node_index(node))
+        logger.debug(f'[{self.module_name}] freed up job resources')
+
     def allocate(self, jobs):
         """Allocate resources for the given jobs.
         Given the numbers of workers and parameter servers in a synchronous training job, 
@@ -52,7 +59,7 @@ class DefaultAllocator(ResourceAllocator):
             # check if node resource can satisfy the job's resource requirements
             cand_place_nodes = []
             while not cpu_avail_queue.empty():
-                avail_cpu, node_index = cpu_avail_queue.get()
+                used_cpus, node_index = cpu_avail_queue.get()
                 cand_place_nodes.append(node_index)
 
                 # try to place the job on cand_place_nodes
@@ -101,7 +108,7 @@ class DefaultAllocator(ResourceAllocator):
                             self.cluster.free_resources(job, "worker", 1, node)
                         if not ps_already_deduct:
                             for node in ps_nodes:
-                                self.cluster.assign_resources(job, "ps", 1, node)
+                                self.cluster.free_resources(job, "ps", 1, node)
                         break
 
                 if fit_flag:
@@ -117,7 +124,7 @@ class DefaultAllocator(ResourceAllocator):
                     else:
                         # have try all nodes, but still can not place, then check if we can place some tasks
                         # and place ps and worker alternatively
-                        logger.debug(f'[scheduler] last placed job: {job.name}')
+                        logger.debug(f'[{self.module_name}] last placed job: {job.name}')
                         ps_nodes = []
                         worker_nodes = []
                         flag_place_ps = True
@@ -152,8 +159,7 @@ class DefaultAllocator(ResourceAllocator):
                             flag_place_ps = not flag_place_ps  # change to place the other task
                             if len(ps_nodes) >= job.resources.ps.num_ps:  # all ps tasks have been placed
                                 flag_place_ps = False
-                            if len(
-                                    worker_nodes) >= job.resources.worker.num_worker:  # all worker tasks have been placed
+                            if len(worker_nodes) >= job.resources.worker.num_worker:  # all workers have been placed
                                 flag_place_ps = True
 
                         if len(ps_nodes) > 0 and len(worker_nodes) > 0:

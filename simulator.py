@@ -5,17 +5,16 @@ import signal
 import random
 import yaml
 from pathlib import Path
+import threading
 
 import config
 from communication import Handler, Payload, hub
-from k8s.api import KubeAPI
 from log import logger
 from dl_job import DLJob
 
-k8s_api = KubeAPI()
 
 def exit_gracefully(signum, frame):
-    hub.broadcast('stop')
+    frame.f_locals['self'].stop()
 
 
 signal.signal(signal.SIGINT, exit_gracefully)
@@ -23,13 +22,13 @@ signal.signal(signal.SIGTERM, exit_gracefully)
 
 class Simulator(Handler):
     def __init__(self):
-        super().__init__(hub.connection, entity='simulator')
+        super().__init__(hub.connection, entity='simulator', daemon=False)
         self.job_dict = dict()
         self.counter = 0
         self.module_name = 'simulator'
         self.generate_jobs()
+        self.initiated = threading.Event()
         hub.push(Payload(None, self.module_name, 'reset'), 'timer')
-        self.start()
 
     def stop(self):
         super().stop()
@@ -85,18 +84,20 @@ class Simulator(Handler):
 
         if self.counter == config.TOT_NUM_JOBS:
             logger.debug(f'[simulator] initiated stop')
-            hub.broadcast('stop')
+            self.stop()
 
     def process(self, msg):
-        self.submit_job(msg.timestamp)
+        if msg.type == 'reset':
+            self.initiated.set()
+
+        if self.initiated.wait():
+            self.submit_job(msg.timestamp)
 
 
 def main():
     sim = Simulator()
-
-    # check for kill signal
-    signal.pause()
-    time.sleep(2)
+    sim.start()
+    sim.join()
 
 if __name__ == '__main__':
     if len(sys.argv) != 1:

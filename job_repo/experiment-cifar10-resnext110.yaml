@@ -3,7 +3,7 @@ metadata:
   modelname: resnet110
   batch_size: 128
   scale_bs: True
-  num_examples: 0
+  num_examples: 50000
 
 envs:
   kv_store_big_array_bound: '1000000'

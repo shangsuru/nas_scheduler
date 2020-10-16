@@ -77,8 +77,8 @@ class Router():
 
 
 class Handler(threading.Thread, ConsumerMixin, metaclass=abc.ABCMeta):
-    def __init__(self, connection, entity):
-        threading.Thread.__init__(self, daemon=True)
+    def __init__(self, connection, entity, daemon=True):
+        threading.Thread.__init__(self, daemon=daemon)
         self.connection = connection
         self.entity = entity
 

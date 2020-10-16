@@ -34,6 +34,9 @@ class Cluster():
         self.num_bw = self.num_nodes * bw_per_node
         self.num_gpu = self.num_nodes * gpu_per_node
 
+    def get_node_index(self, node):
+        return self.nodes.index(node)
+
     def check_cluster_resource_full(self, cpu_req, mem_req, bw_req=0, gpu_req=0):
         """Check whether cluster resources are sufficient.
 
