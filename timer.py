@@ -21,7 +21,7 @@ class Timer(Handler):
             hub.push(Payload(self.clock, 'timer', 'update', {'time': self.clock}), msg.source)
         elif msg.type == 'reset':
             self.clock = 1
-            hub.push(Payload(self.clock, 'timer', 'update', {'time': self.clock}), msg.source)
+            hub.push(Payload(self.clock, 'timer', 'reset', {'time': self.clock}), msg.source)
         else:
             self.clock += 1
             hub.push(Payload(self.clock, 'timer', 'update', {'time': self.clock}), 'simulator')

@@ -60,6 +60,8 @@ class DLJob():
 
         self.speed_list = []
 
+        self.running_tasks = []
+
         # [(epoch, batch)]
         self.progress_list = None
         self.ps_metrics = []
@@ -89,6 +91,12 @@ class DLJob():
         if not hasattr(other, 'uid'):
             return NotImplemented
         return self.uid < other.uid
+
+    def __eq__(self, other):
+        return self.uid == other.uid
+
+    def __hash__(self):
+        return hash(self.uid)
 
     def __repr__(self):
         return f'DLJob(name={self.name})'
@@ -165,9 +173,9 @@ class DLJob():
                     batch_sizes[i] = batch_sizes[i] + 1
                 self.batch_sizes = [str(i) for i in batch_sizes]
 
-        if 'sync' in self.envs.kv_store:
+        if self.envs.kv_store == 'dist_sync':
             self.epoch_size = self.metadata.num_examples / self.metadata.batch_size
-        elif 'async' in self.envs.kv_store:
+        elif self.envs.kv_store == 'dist_async':
             self.epoch_size = self.metadata.num_examples / self.metadata.batch_size / self.resources.worker.num_worker
 
     def _create_jobs(self):
@@ -177,9 +185,9 @@ class DLJob():
             'script': self.container.init_script,
             'prog': self.envs.prog_cmd,
             'work_dir': self.data.work_dir,
-            'work_volume': self.data.work_volume,
+            'work_volume': 'k8s-mxnet-work-volume',
             'data_dir': self.data.data_dir,
-            'data_volume': self.data.data_volume,
+            'data_volume': 'k8s-mxnet-data-volume',
 
             'host_data_dir': self.data.host_data_dir,
 
@@ -200,7 +208,7 @@ class DLJob():
         jobs = []
         for j in range(self.resources.worker.num_worker):
             worker_job_conf = {
-                'worker_mount_dirs': self.worker_mount_dirs[j],
+                'host_mount_dir': self.worker_mount_dirs[j],
                 'worker_placement': self.worker_placement[j],
                 'batch_size': self.batch_sizes[j]
             }
@@ -209,11 +217,11 @@ class DLJob():
                       replica_id=j,
                       image=self.container.image,
                       job_conf={**job_conf_base, **worker_job_conf})
-            jobs.append(job.k8s_job_obj)
+            jobs.append(job)
 
         for j in range(self.resources.ps.num_ps):
             ps_job_conf = {
-                'ps_mount_dirs': self.ps_mount_dirs[j],
+                'host_mount_dir': self.ps_mount_dirs[j],
                 'ps_placement': self.ps_placement[j]
             }
             job = Job(name=self.name,
@@ -221,7 +229,7 @@ class DLJob():
                       replica_id=j,
                       image=self.container.image,
                       job_conf={**job_conf_base, **ps_job_conf})
-            jobs.append(job.k8s_job_obj)
+            jobs.append(job)
 
         return jobs
 
@@ -266,7 +274,7 @@ class DLJob():
 
             def run(self, cmd, i):
                 try:
-                    output = subprocess.check_output(cmd, shell=True)
+                    output = subprocess.check_output(cmd, shell=True).decode('utf-8')
                     counter = 0
                     while output == '' or output is None:
                         output = subprocess.check_output(cmd, shell=True)
@@ -287,7 +295,7 @@ class DLJob():
                     else:
                         logger.info("Job:: " + "the progress output is empty.")
                 except Exception as e:
-                    logger.error("Job:: " + "_read_progress_stats: " + str(e) + " : " + output)
+                    logger.error("Job:: " + "_read_progress_stats: " + str(e))
 
             thread = threading.Thread(target=run, args=(self, cmd, i))
             thread.start()
@@ -324,7 +332,7 @@ class DLJob():
                         if counter > 2:
                             logger.error('Job::_read_training_speed: read training speed timeout.')
                             return
-                    stb_speed = float(output.replace('\n', '').split(' ')[1])
+                    stb_speed = float(output.decode("utf-8").replace('\n', '').split(' ')[1])
                     self.speed_list[i] = float('%.3f' % stb_speed)
                 except Exception as e:
                     logger.error(f'Job::_read_training_speed: {str(e)}')
@@ -406,9 +414,8 @@ class DLJob():
         # job working dir on host
         os.makedirs(self.dir)
 
-        self.ps_mount_dirs = self.__set_mount_dirs('ps', self.data.host_workdir_prefix)  # ps container mount
-        self.worker_mount_dirs = self.__set_mount_dirs('worker',
-                                                       self.data.host_workdir_prefix)  # worker container mount
+        self.ps_mount_dirs = self.__set_mount_dirs('ps', self.data.host_workdir_prefix) # ps container mount
+        self.worker_mount_dirs = self.__set_mount_dirs('worker', self.data.host_workdir_prefix) # worker container mount
         self.__set_batch_size()
 
         self.running_tasks = self._create_jobs()
@@ -418,7 +425,7 @@ class DLJob():
 
         # start pods in k8s. equivalent to microk8s kubectl create -f jobs.yaml
         for job in self.running_tasks:
-            k8s_api.submit_job(job)
+            k8s_api.submit_job(job.k8s_job_obj)
 
     def delete(self, del_all=False):
         """Delete the job.
@@ -438,29 +445,27 @@ class DLJob():
         for thread in thread_list:
             thread.join()
 
-        if not del_all:
-            return
-
         # remove mounted dirs on hosts
-        thread_list = []
-        for i in range(self.resources.worker.num_worker):
-            node = self.worker_placement[i]
-            worker_mount_dir = self.worker_mount_dirs[i]
-            cmd = f'timeout 10 ssh {node} "rm -r {worker_mount_dir}"'
-            thread = threading.Thread(target=(lambda cmd=cmd: os.system(cmd)), args=())
-            thread.start()
-            thread_list.append(thread)
+        if self.worker_mount_dirs and del_all:
+            thread_list = []
+            for i in range(self.resources.worker.num_worker):
+                node = self.worker_placement[i]
+                worker_mount_dir = self.worker_mount_dirs[i]
+                cmd = f'timeout 10 ssh {node} "rm -r {worker_mount_dir}"'
+                thread = threading.Thread(target=(lambda cmd=cmd: os.system(cmd)), args=())
+                thread.start()
+                thread_list.append(thread)
 
-        for i in range(self.resources.ps.num_ps):
-            node = self.ps_placement[i]
-            ps_mount_dir = self.ps_mount_dirs[i]
-            cmd = f'timeout 10 ssh {node} "rm -r {ps_mount_dir}"'
-            thread = threading.Thread(target=(lambda cmd=cmd: os.system(cmd)), args=())
-            thread.start()
-            thread_list.append(thread)
+            for i in range(self.resources.ps.num_ps):
+                node = self.ps_placement[i]
+                ps_mount_dir = self.ps_mount_dirs[i]
+                cmd = f'timeout 10 ssh {node} "rm -r {ps_mount_dir}"'
+                thread = threading.Thread(target=(lambda cmd=cmd: os.system(cmd)), args=())
+                thread.start()
+                thread_list.append(thread)
 
-        for thread in thread_list:
-            thread.join()
+            for thread in thread_list:
+                thread.join()
 
-        # delete job working dir
-        shutil.rmtree(self.dir)
+            # delete job working dir
+            shutil.rmtree(self.dir)

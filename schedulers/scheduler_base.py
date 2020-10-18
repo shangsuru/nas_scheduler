@@ -21,7 +21,7 @@ class SchedulerBase(Handler, metaclass=abc.ABCMeta):
         self.completed_jobs = []
         self.running_jobs = []
         self.cur_ts_completed_jobs = []
-        self.not_ready_jobs = set()
+        self.not_ready_jobs = []
 
         self.scaling_overhead = 0
         self.testing_overhead = 0
@@ -89,10 +89,6 @@ class SchedulerBase(Handler, metaclass=abc.ABCMeta):
                 thread.start()
                 thread_list.append(thread)
                 job.status = 'running'
-
-                # send message to progressor
-                msg = Payload(self.timer.get_clock(), 'scheduler', 'running', {'job': job})
-                hub.push(msg, 'progressor')
             else:
                 job.status = 'pending'
 
@@ -126,23 +122,28 @@ class SchedulerBase(Handler, metaclass=abc.ABCMeta):
         # sys.exit()
         job.set_ps_placement(ps_placement)
         job.set_worker_placement(worker_placement)
+
         job.start()
+
+        # send message to progressor
+        msg = Payload(self.timer.get_clock(), 'scheduler', 'running', {'job': job})
+        hub.push(msg, 'progressor')
 
     def _delete(self):
         """Delete all the jobs in the current timestamp of scheduler, including running and completed jobs.
         """
+        delete_tic = time.time()
+        # clear existing jobs for next time slot
+        for job in self.running_jobs:
+            job.delete(True)
+            self.allocator.free_job_resources(job)
+
         for job in self.cur_ts_completed_jobs:
             self.uncompleted_jobs.remove(job)
             self.running_jobs.remove(job)
             self.completed_jobs.append(job)
 
         self.cur_ts_completed_jobs = []
-
-        delete_tic = time.time()
-
-        # clear existing jobs for next time slot
-        for job in self.running_jobs:
-            job.delete(True)
 
         delete_toc = time.time()
         self.scaling_overhead += (delete_toc - delete_tic)

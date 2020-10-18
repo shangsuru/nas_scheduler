@@ -15,11 +15,9 @@ class Progressor(Handler):
         self.start()
 
     def process(self, msg: Payload):
-        logger.debug(f'[{self.module_name}] received message: {str(msg)}')
-
         job = msg.fetch_content('job')
         if msg.source == 'scheduler' and msg.type == 'running':
-            if msg.content['job'] not in self.running_jobs:
+            if job not in self.running_jobs:
                 self.running_jobs.add(job)
         elif msg.source == 'scheduler' and msg.type == 'pending':
             if job in self.running_jobs:
@@ -46,9 +44,9 @@ class Progressor(Handler):
 
         while counter < freq and len(self.running_jobs) > 0:
             # if no jobs in this timeslot, skip it
-            for i in range(config.TS_INTERVAL/freq):
+            for i in range(config.TS_INTERVAL//freq):
                 time.sleep(1)
-                if self.exit_flag:
+                if self.should_stop:
                     return
             counter += 1
             cpu_usage_dict = dict()  # job, cpu_usage in this interval
@@ -56,9 +54,15 @@ class Progressor(Handler):
 
             for job in self.running_jobs.copy():
                 try:
+                    logger.debug(f'[progressor] Trying to read progress/speed stats #{counter}')
                     (progress_list, val_loss_list) = job.get_training_progress_stats()
                     speed_list = job.get_training_speed()
                     (ps_metrics, worker_metrics) = job.get_metrics()
+
+                    if sum(speed_list) == 0 or not progress_list:
+                        continue
+
+                    logger.debug(f'[{self.module_name}] got training progress. speed_list={speed_list}')
                 except:
                     logger.info('[progressor] get training stats error!')
                     continue
@@ -66,7 +70,7 @@ class Progressor(Handler):
                 # progress, train_acc, train_loss, val_acc, val_loss
                 # assume format [(epoch, batch), ...]
                 # assume job epoch size is given
-                if 'sync' in job.kv_store:
+                if job.envs.kv_store == 'dist_sync':
                     if len(progress_list) > 0:
                         epoch_list = []
                         batch_list = []
@@ -93,11 +97,11 @@ class Progressor(Handler):
                     job.progress += sum1 / len(progress_list) + sum2 / len(progress_list) / job.epoch_size
 
                 # update training speed dict
-                logger.debug(f'[progressor] {(job.num_ps, job.num_worker)}: {sum(speed_list) / int(job.tot_batch_size)} batches/second')
-                job.training_speeds[(job.num_ps, job.num_worker)] = sum(speed_list) / int(job.tot_batch_size)
+                logger.debug(f'[progressor] {(job.resources.ps.num_ps, job.resources.worker.num_worker)}: {sum(speed_list) / int(job.metadata.batch_size)} batches/second')
+                job.training_speeds[(job.resources.ps.num_ps, job.resources.worker.num_worker)] = sum(speed_list) / int(job.metadata.batch_size)
 
                 # get # of running tasks
-                num_tasks += (job.num_ps + job.num_worker)
+                num_tasks += (job.resources.ps.num_ps + job.resources.worker.num_worker)
 
                 # compute cpu usage difference
                 ps_cpu_usage_list = []
@@ -126,15 +130,15 @@ class Progressor(Handler):
                 '''
 
                 # logger
-                logger.info(f'[progressor] job name: {job.name}, model name: {job.model_name} \
-                    , kv_store: {job.kv_store}\
-                    , batch_size: {job.tot_batch_size}\
+                logger.info(f'[progressor] job name: {job.name}, model name: {job.metadata.modelname} \
+                    , kv_store: {job.envs.kv_store}\
+                    , batch_size: {job.metadata.batch_size}\
                     , num_ps: {job.resources.ps.num_ps}, num_worker: {job.resources.worker.num_worker}\
                     , progress_list: {progress_list}\
                     , job total progress: {job.progress:.3f}\
                     , num_epochs: {job.num_epochs}\
                     , speed_list: {speed_list}, sum_speed (samples/second): {sum(speed_list)}\
-                    , sum_speed(batches/second): {sum(speed_list) / int(job.tot_batch_size)}\
+                    , sum_speed(batches/second): {sum(speed_list) / int(job.metadata.batch_size)}\
                     , ps cpu usage diff: {ps_cpu_diff}\
                     , worker cpu usage diff: {worker_cpu_diff}')
 
@@ -144,12 +148,13 @@ class Progressor(Handler):
                     job.status = 'completed'
                     job.end_slot = self.timer.get_clock()
                     job.end_time = time.time()
-                    job.delete(True)
+                    # job.delete(True)
                     logger.info(f'[progressor] {job.name} has completed. \
-                                     # of time slots: {job.end_slot - job.arrival_slot} \
-                                     completion time: {job.end_time - job.arrival_time}')
+                    # of time slots: {job.end_slot - job.arrival_slot} \
+                    completion time: {job.end_time - job.arrival_time}')
+
                     self.running_jobs.remove(job)
-                    msg = Payload(self.timer.get_clock(), 'progressor', 'completion', {'job':job})
+                    msg = Payload(self.timer.get_clock(), 'progressor', 'completion', {'job': job})
                     hub.push(msg, 'scheduler')
                 else:
                     continue
@@ -160,8 +165,8 @@ class Progressor(Handler):
             for key, value in cpu_usage_dict.items():
                 job = key
                 ps_cpu, worker_cpu = value
-                norm_ps_cpu = ps_cpu / job.ps_cpu
-                norm_worker_cpu = worker_cpu / job.worker_cpu
+                norm_ps_cpu = ps_cpu / job.resources.ps.ps_cpu
+                norm_worker_cpu = worker_cpu / job.resources.worker.worker_cpu
                 slot_avg_ps_cpu_list.append(norm_ps_cpu)
                 slot_avg_worker_cpu_list.append(norm_worker_cpu)
 
