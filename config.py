@@ -15,7 +15,7 @@ k8s_params = {
 LOGGER_NAME = "NAS_scheduler"
 LOG_LEVEL = "DEBUG"
 
-AMQP_URI = "amqp://guest:guest@localhost:5672//"
+AMQP_URI = "amqp://guest:guest@localhost:5672/"
 
 #Cluster detail
 DEFAULT_NUM_PS = 1
