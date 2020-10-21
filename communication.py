@@ -11,14 +11,14 @@ from log import logger
 
 class XCHQueues():
     exchange = Exchange('hub_exchange', type='direct')
-    broadcast_exchange = Exchange('hub_fanout', type='fanout', auto_delete=True)
+    broadcast_exchange = Exchange('hub_fanout', type='fanout')
     queues = {
         'scheduler': Queue('scheduler', exchange, routing_key='scheduler'),
         'progressor': Queue('progressor', exchange, routing_key='progressor'),
         'statsor': Queue('statsor', exchange, routing_key='statsor'),
         'timer': Queue('timer', exchange, routing_key='timer'),
         'simulator': Queue('simulator', exchange, routing_key='simulator'),
-        'broadcast': Broadcast(name='broadcast', exchange=broadcast_exchange, auto_delete=True),
+        'broadcast': Broadcast(name='broadcast', exchange=broadcast_exchange, expires=3),
     }
 
 class Payload():
@@ -39,14 +39,20 @@ class Payload():
 
 class Router():
     def __init__(self):
-        self.connection = Connection(config.AMQP_URI)
+        self.connection = None
+        self.producer = None
+
+    def __del__(self):
+        if self.connection and self.producer:
+            self.connection.release()
+            self.producer.release()
+
+    def connect(self, vhost='/'):
+        logger.debug(f'[communication] Connecting to {config.AMQP_URI}{vhost}')
+        self.connection = Connection(f'{config.AMQP_URI}{vhost}')
         self.connection.connect()
 
         self.producer = Producer(self.connection)
-
-    def __del__(self):
-        self.connection.release()
-        self.producer.release()
 
     def push(self, body, destination):
         self.producer.publish(body,

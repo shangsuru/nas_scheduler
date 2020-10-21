@@ -1,3 +1,13 @@
+"""NASS Simulator.
+
+Usage:
+    simulator.py [--vhost=<vhost>]
+
+Options:
+    --vhost=<vhost>             RabbitMQ Vhost name [default: /]
+    -h --help                   Show this screen
+"""
+
 import os
 import sys
 import time
@@ -6,11 +16,17 @@ import random
 import yaml
 from pathlib import Path
 import threading
+from docopt import docopt
+from schema import Schema, Use, SchemaError
 
 import config
 from communication import Handler, Payload, hub
 from log import logger
 from dl_job import DLJob
+
+docopt_schema = Schema({
+    '--vhost': Use(str),
+})
 
 
 def exit_gracefully(signum, frame):
@@ -95,13 +111,19 @@ class Simulator(Handler):
 
 
 def main():
+    arguments = docopt(__doc__, version=f'v0.1')
+
+    try:
+        arguments = docopt_schema.validate(arguments)
+    except SchemaError as e:
+        exit(e)
+
+    hub.connect(arguments['--vhost'])
+
     sim = Simulator()
     sim.start()
     sim.join()
 
+
 if __name__ == '__main__':
-    if len(sys.argv) != 1:
-        print("Description: job scheduling simulator")
-        print("Usage: python simulator.py")
-        sys.exit(1)
     main()
