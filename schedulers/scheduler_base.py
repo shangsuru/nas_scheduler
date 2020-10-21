@@ -7,11 +7,11 @@ from communication import Handler, hub, Payload
 from allocators.default_allocator import DefaultAllocator
 from log import logger
 
+
 class SchedulerBase(Handler, metaclass=abc.ABCMeta):
     def __init__(self, cluster, timer):
         super().__init__(connection=hub.connection, entity='scheduler')
 
-        self.module_name = 'scheduler_base'
         self.timer = timer
         self.cluster = cluster
         self.allocator: DefaultAllocator
@@ -53,7 +53,7 @@ class SchedulerBase(Handler, metaclass=abc.ABCMeta):
 
     def stop(self):
         Handler.stop(self)
-        logger.debug(f'[{self.module_name}] delete unfinished jobs...')
+        logger.debug(f'delete unfinished jobs...')
         thread_list = []
         for job in self.uncompleted_jobs:
             del_thread = threading.Thread(target=(lambda job=job: job.delete(True)), args=())
@@ -100,7 +100,7 @@ class SchedulerBase(Handler, metaclass=abc.ABCMeta):
             thread.join()
         scaling_toc = time.time()
         self.scaling_overhead += (scaling_toc - scaling_tic)
-        logger.debug(f'[{self.module_name}] job starting time: {scaling_toc - scaling_tic:.3f} seconds.')
+        logger.debug(f'job starting time: {scaling_toc - scaling_tic:.3f} seconds.')
 
         # send message to progressor to signal scheduling completion
         msg = Payload(self.timer.get_clock(), 'scheduler', 'done')
@@ -115,7 +115,7 @@ class SchedulerBase(Handler, metaclass=abc.ABCMeta):
             ps_placement (list): list of ps nodes, i.e. ip addresses
             worker_placement (list): list of worker nodes, i.e. ip addresses
         """ 
-        logger.debug(f'[{self.module_name}] running {job.name}, num_ps: {job.resources.ps.num_ps}, \
+        logger.debug(f'running {job.name}, num_ps: {job.resources.ps.num_ps}, \
             num_worker: {job.resources.worker.num_worker}, ps_placement: {ps_placement}, \
             worker_placement: {worker_placement}')
         # set placement and start job
@@ -147,7 +147,7 @@ class SchedulerBase(Handler, metaclass=abc.ABCMeta):
 
         delete_toc = time.time()
         self.scaling_overhead += (delete_toc - delete_tic)
-        logger.debug(f'[{self.module_name}] job shutdown time: {(delete_toc - delete_tic):.3f} seconds.')
+        logger.debug(f'job shutdown time: {(delete_toc - delete_tic):.3f} seconds.')
 
         # send message to statsor to get statistics of this timeslot
         msg = Payload(self.timer.get_clock(), 'scheduler', 'control', None)

@@ -17,7 +17,6 @@ from log import logger
 
 class OptimusEstimator():
     def __init__(self, cluster):
-        self.module_name = 'optimus_estimator'
         self.cluster = cluster
         self.exit_event = threading.Event()
         self.existing_jobs = []
@@ -82,7 +81,7 @@ class OptimusEstimator():
 
     def _run(self, job, placement):
         # set placement
-        logger.debug(f'[{self.module_name}] {job.name}, num_ps: {job.resources.ps.num_ps}, num_worker: \
+        logger.debug(f'{job.name}, num_ps: {job.resources.ps.num_ps}, num_worker: \
                         {job.resources.worker.num_worker}, placement: {placement}')
         job.resources.ps.num_ps = len(placement)
         job.resources.worker.worker = job.resources.ps.num_ps
@@ -92,7 +91,7 @@ class OptimusEstimator():
         job.start()
 
     def test_speed(self, new_jobs):
-        logger.debug(f'[{self.module_name}] start testing training speed for {len(new_jobs)} jobs...')
+        logger.debug(f'start testing training speed for {len(new_jobs)} jobs...')
 
         tic = time.time()
 
@@ -118,7 +117,7 @@ class OptimusEstimator():
 
             if collected:
                 # all job has collected 5 points
-                logger.info(f'[{self.module_name}] No need to test speed, all jobs are known workload.')
+                logger.info(f'No need to test speed, all jobs are known workload.')
                 break
             else:
                 # at least one job does not have 5 speed points
@@ -144,7 +143,7 @@ class OptimusEstimator():
                         break
 
             counter += 1
-            logger.debug(f'[{self.module_name}] No.{counter} time, collecting speed points...')
+            logger.debug(f'No.{counter} time, collecting speed points...')
 
             placements = self._test_placement(sorted_jobs)
             running_jobs = []
@@ -159,7 +158,7 @@ class OptimusEstimator():
                     # multiple concurrent job starting may cause congestion
                     time.sleep(3)
                 else:
-                    logger.debug(f'[{self.module_name}] {job.name} does not get resources to test speed')
+                    logger.debug(f'{job.name} does not get resources to test speed')
 
             for thread in threads:
                 thread.join()
@@ -180,15 +179,15 @@ class OptimusEstimator():
                         job.delete(True)
                         flag = False
                     else:
-                        logger.debug(f'[{self.module_name}] did not get speed from job {job.name}, {speed_list}, sleep and try again later.')
+                        logger.debug(f'did not get speed from job {job.name}, {speed_list}, sleep and try again later.')
                         if self.exit_event.wait(10):
                             sys.exit()
 
             for job in new_jobs:
-                logger.debug(f'[{self.module_name}] {job.name}: {job.training_speeds}')
+                logger.debug(f'{job.name}: {job.training_speeds}')
 
         toc = time.time()
-        logger.info(f'[{self.module_name}] time cost of collecting speed points: {(toc - tic):.3f} seconds')
+        logger.info(f'time cost of collecting speed points: {(toc - tic):.3f} seconds')
         # clear modifications
         for job in new_jobs:
             job.name = job.name.split('-optimus-estimator')[0]
@@ -247,7 +246,7 @@ class OptimusEstimator():
                     [a, b, c] = self._loss_curve_fitting(np.array(epoch_list), np.array(
                         loss_list))  # could throw exception since the loss may not descend at the beginning
                 except Exception as e:
-                    logger.error(f'[{self.module_name}] loss curve fitting error: {e}')
+                    logger.error(f'loss curve fitting error: {e}')
                     return -1
                 # if loss does not change a lot for a certain period, converge.
                 epoch = max(0, int(job.progress) - config.LOSS_LITTLE_CHANGE_EPOCH_NUM)
@@ -301,7 +300,7 @@ class OptimusEstimator():
                                sigma=np.array(sigma), absolute_sigma=False, bounds=param_bounds)
             return params[0]
         except Exception as e:
-            logger.error(f'[{self.module_name}] curve fitting error, {str(e)}')
+            logger.error(f'curve fitting error, {str(e)}')
 
     def est_speed(self, job, num_ps, num_worker):
         """Give the number of ps and the number of worker, predict the training speed.
@@ -325,7 +324,7 @@ class OptimusEstimator():
                     params = self._async_speed_curve_fitting(np.array(ps_list), np.array(worker_list),
                                                              np.array(speed_list))
                     if params is None:
-                        logger.error(f'[{self.module_name}] {job.name} {str((num_ps, num_worker))} speed estimation error')
+                        logger.error(f'{job.name} {str((num_ps, num_worker))} speed estimation error')
                         return -1
                     else:
                         [a, b, c, d] = params
@@ -344,7 +343,7 @@ class OptimusEstimator():
                     params = self._sync_speed_curve_fitting(np.array(ps_list), np.array(worker_list),
                                                             np.array(batch_size_list), np.array(speed_list))
                     if params is None:
-                        logger.error(f'[{self.module_name}] {job.name} {(num_ps, num_worker)} speed estimation error')
+                        logger.error(f'{job.name} {(num_ps, num_worker)} speed estimation error')
                         return -1
                     else:
                         [a, b, c, d, e] = params
@@ -362,7 +361,6 @@ class OptimusScheduler(SchedulerBase):
             timer (Timer): timer instance
         """
         super().__init__(cluster, timer)
-        self.module_name = 'optimus_scheduler'
         self.estimator = OptimusEstimator(cluster)
         self.allocator = DefaultAllocator(cluster)
         self.start()
@@ -388,7 +386,7 @@ class OptimusScheduler(SchedulerBase):
 
         rem_epoch = end_epoch - job.progress  # the rem_epoch is negative if estimated epoch return -1
         est_speed = self.estimator.est_speed(job, job.resources.ps.num_ps, job.resources.worker.num_worker)
-        logger.debug(f'[{self.module_name}] estimated speed: {est_speed}')
+        logger.debug(f'estimated speed: {est_speed}')
 
         if est_speed <= 0:
             if job not in self.not_ready_jobs:
@@ -439,13 +437,13 @@ class OptimusScheduler(SchedulerBase):
             (arrival_time, job) = self.queueing_jobs.get()
             new_jobs.append(job)
 
-        logger.debug(f'[{self.module_name}] newly arrived jobs: {new_jobs}')
+        logger.debug(f'newly arrived jobs: {new_jobs}')
 
         # first estimate speed
         test_tic = time.time()
         self.estimator.existing_jobs = self.uncompleted_jobs + self.completed_jobs
         self.estimator.test_speed(new_jobs)
-        logger.debug(f'[{self.module_name}] Finish testing speed for new jobs.')
+        logger.debug(f'Finish testing speed for new jobs.')
         test_toc = time.time()
         self.testing_overhead += (test_toc - test_tic)
 
@@ -519,14 +517,14 @@ class OptimusScheduler(SchedulerBase):
                 break
 
         # TODO: how to handle not_ready_jobs
-        logger.debug(f'[{self.module_name}] not ready jobs: {self.not_ready_jobs}')
+        logger.debug(f'not ready jobs: {self.not_ready_jobs}')
 
         # check the scheduling result
         for job in self.uncompleted_jobs:
-            logger.debug(f'[{self.module_name}] scheduling results | num_ps:{job.resources.ps.num_ps}, \
+            logger.debug(f'scheduling results | num_ps:{job.resources.ps.num_ps}, \
             num_worker:{job.resources.worker.num_worker}')
 
         # how to handle remaining resources? Due to error sometimes allocating resource can still increase speed
 
         toc = time.time()
-        logger.debug(f'[{self.module_name}] scheduling time: {(toc - tic):.3f} seconds.')
+        logger.debug(f'scheduling time: {(toc - tic):.3f} seconds.')

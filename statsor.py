@@ -8,7 +8,6 @@ from log import logger
 class Statsor(Handler):
     def __init__(self, timer, scheduler, progressor, cluster):
         super().__init__(connection=hub.connection, entity='statsor')
-        self.module_name = 'statsor'
         self.timer = timer
         self.scheduler = scheduler
         self.progressor = progressor
@@ -22,7 +21,7 @@ class Statsor(Handler):
         self.start()
 
     def process(self, msg):
-        logger.debug(f'[{self.module_name}] received msg: {str(msg)}')
+        logger.debug(f'received msg: {str(msg)}')
 
         if msg.type == "control" and msg.source == "scheduler":
             # signal that the scheduler has finished its timeslot and we can start getting statistics
@@ -31,11 +30,11 @@ class Statsor(Handler):
             raise RuntimeError
 
     def _stats(self, t):
-        logger.info(f'[{self.module_name}] time slot: {t}')
+        logger.info(f'time slot: {t}')
         num_submit_jobs = len(self.scheduler.uncompleted_jobs) + len(self.scheduler.completed_jobs)
         num_completed_jobs = len(self.scheduler.completed_jobs)
         num_uncompleted_jobs = len(self.scheduler.uncompleted_jobs)
-        logger.info(f'[{self.module_name}] submitted jobs: {num_submit_jobs}, completed jobs: {num_completed_jobs}, \
+        logger.info(f'submitted jobs: {num_submit_jobs}, completed jobs: {num_completed_jobs}, \
                         uncompleted_jobs: {num_uncompleted_jobs}')
 
         cluster_cpu_util = float('%.3f' % (1.0 * self.cluster.used_cpu / self.cluster.num_cpu))
@@ -43,7 +42,7 @@ class Statsor(Handler):
         cluster_bw_util = float('%.3f' % (1.0 * self.cluster.used_bw / self.cluster.num_bw))
         cluster_gpu_util = float('%.3f' % (1.0 * self.cluster.used_gpu / self.cluster.num_gpu))
 
-        logger.info(f'[{self.module_name}] CPU utilization: {(100.0 * cluster_cpu_util):.3f}%, \
+        logger.info(f'CPU utilization: {(100.0 * cluster_cpu_util):.3f}%, \
                          MEM utilization: {(100.0 * cluster_mem_util):.3f}%,\
                          "BW utilization: {(100.0 * cluster_bw_util):.3f}%,\
                          "GPU utilization: {(100.0 * cluster_gpu_util):.3f}%')
@@ -60,9 +59,9 @@ class Statsor(Handler):
             avg_completion_time = 1.0 * sum(completion_time_list) / len(completion_time_list)
             avg_completion_slot = sum(completion_slot_list) / len(completion_slot_list)
         except:
-            logger.debug(f'[{self.module_name}] No jobs are finished!!!')
+            logger.debug(f'No jobs are finished!!!')
         else:
-            logger.debug(f'[{self.module_name}] average completion time (including speed measurement): {avg_completion_time:.3f} seconds, \
+            logger.debug(f'average completion time (including speed measurement): {avg_completion_time:.3f} seconds, \
                 average completion slots: {avg_completion_slot}')
 
         stats_dict = dict()
@@ -95,7 +94,7 @@ class Statsor(Handler):
         runtime = toc - self.tic
         stats_dict["runtime"] = float('%.3f' % (runtime))
         if len(self.scheduler.completed_jobs) == config.TOT_NUM_JOBS:
-            logger.info(f'[{self.module_name}] All jobs are completed!')
+            logger.info(f'All jobs are completed!')
             if self.end is None:
                 self.end = runtime
             stats_dict["makespan"] = float('%.3f' % (self.end))
