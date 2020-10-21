@@ -48,7 +48,7 @@ class Router():
             self.producer.release()
 
     def connect(self, vhost='/'):
-        logger.debug(f'[communication] Connecting to {config.AMQP_URI}{vhost}')
+        logger.debug(f'Connecting to {config.AMQP_URI}{vhost}')
         self.connection = Connection(f'{config.AMQP_URI}{vhost}')
         self.connection.connect()
 
@@ -89,10 +89,10 @@ class Handler(threading.Thread, ConsumerMixin, metaclass=abc.ABCMeta):
         self.entity = entity
 
     def __del__(self):
-        logger.debug(f'[{self.module_name}] exited.')
+        logger.debug(f'{self.entity} exited.')
 
     def run(self):
-        logger.debug(f'[{self.module_name}] started within {threading.currentThread().getName()}')
+        logger.debug(f'{self.entity} started within {threading.currentThread().getName()}')
         ConsumerMixin.run(self)
 
     def stop(self):
@@ -106,7 +106,7 @@ class Handler(threading.Thread, ConsumerMixin, metaclass=abc.ABCMeta):
         return [consumer]
 
     def __handle_message(self, body, message):
-        logger.debug(f'[{self.module_name}] Received message {str(body)}')
+        logger.debug(f'{self.entity} received message {str(body)}')
         if body == 'stop':
             self.stop()
         else:

@@ -7,7 +7,6 @@ from log import logger
 class Progressor(Handler):
     def __init__(self, timer):
         super().__init__(connection=hub.connection, entity='progressor')
-        self.module_name = 'progressor'
         self.timer = timer
         self.running_jobs = set()
         self.num_running_tasks = []
@@ -54,7 +53,7 @@ class Progressor(Handler):
 
             for job in self.running_jobs.copy():
                 try:
-                    logger.debug(f'[progressor] Trying to read progress/speed stats #{counter}')
+                    logger.debug(f'Trying to read progress/speed stats #{counter}')
                     (progress_list, val_loss_list) = job.get_training_progress_stats()
                     speed_list = job.get_training_speed()
                     (ps_metrics, worker_metrics) = job.get_metrics()
@@ -62,9 +61,9 @@ class Progressor(Handler):
                     if sum(speed_list) == 0 or not progress_list:
                         continue
 
-                    logger.debug(f'[{self.module_name}] got training progress. speed_list={speed_list}')
+                    logger.debug(f'got training progress. speed_list={speed_list}')
                 except:
-                    logger.info('[progressor] get training stats error!')
+                    logger.info('get training stats error!')
                     continue
 
                 # progress, train_acc, train_loss, val_acc, val_loss
@@ -83,7 +82,7 @@ class Progressor(Handler):
                             batch_list.append(batch)
                         max_epoch_index = epoch_list.index(max(epoch_list))
                         max_batch_index = batch_list.index(max(batch_list))
-                        logger.debug(f'[progressor] epoch_size: {job.epoch_size}')
+                        logger.debug(f'epoch_size: {job.epoch_size}')
                         if max_epoch_index == max_batch_index:
                             job.progress = saved_progress_dict[job.uid] + (epoch_list[max_epoch_index] + batch_list[max_epoch_index]*1.0/job.epoch_size)
                         else:
@@ -97,7 +96,7 @@ class Progressor(Handler):
                     job.progress += sum1 / len(progress_list) + sum2 / len(progress_list) / job.epoch_size
 
                 # update training speed dict
-                logger.debug(f'[progressor] {(job.resources.ps.num_ps, job.resources.worker.num_worker)}: {sum(speed_list) / int(job.metadata.batch_size)} batches/second')
+                logger.debug(f'{(job.resources.ps.num_ps, job.resources.worker.num_worker)}: {sum(speed_list) / int(job.metadata.batch_size)} batches/second')
                 job.training_speeds[(job.resources.ps.num_ps, job.resources.worker.num_worker)] = sum(speed_list) / int(job.metadata.batch_size)
 
                 # get # of running tasks
@@ -130,7 +129,7 @@ class Progressor(Handler):
                 '''
 
                 # logger
-                logger.info(f'[progressor] job name: {job.name}, model name: {job.metadata.modelname} \
+                logger.info(f'job name: {job.name}, model name: {job.metadata.modelname} \
                     , kv_store: {job.envs.kv_store}\
                     , batch_size: {job.metadata.batch_size}\
                     , num_ps: {job.resources.ps.num_ps}, num_worker: {job.resources.worker.num_worker}\
@@ -149,7 +148,7 @@ class Progressor(Handler):
                     job.end_slot = self.timer.get_clock()
                     job.end_time = time.time()
                     # job.delete(True)
-                    logger.info(f'[progressor] {job.name} has completed. \
+                    logger.info(f'{job.name} has completed. \
                     # of time slots: {job.end_slot - job.arrival_slot} \
                     completion time: {job.end_time - job.arrival_time}')
 
@@ -173,11 +172,11 @@ class Progressor(Handler):
             if len(slot_avg_ps_cpu_list) > 0:
                 ps_cpu_occupation = sum(slot_avg_ps_cpu_list) / len(slot_avg_ps_cpu_list)
                 self.ps_cpu_occupations.append(ps_cpu_occupation)
-                logger.debug(f'[progressor] Normalized ps cpu: {ps_cpu_occupation}')
+                logger.debug(f'Normalized ps cpu: {ps_cpu_occupation}')
 
                 worker_cpu_occupation = sum(slot_avg_worker_cpu_list) / len(slot_avg_worker_cpu_list)
                 self.worker_cpu_occupations.append(worker_cpu_occupation)
-                logger.debug(f'[progressor] Normalized worker cpu: {worker_cpu_occupation}')
+                logger.debug(f'Normalized worker cpu: {worker_cpu_occupation}')
 
             self.num_running_tasks.append(num_tasks)
 

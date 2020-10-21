@@ -15,7 +15,7 @@ class DefaultAllocator(ResourceAllocator):
             self.cluster.free_resources(job, "ps", 1, self.cluster.get_node_index(node))
         for node in job.worker_placement:
             self.cluster.free_resources(job, "worker", 1, self.cluster.get_node_index(node))
-        logger.debug(f'[{self.module_name}] freed up job resources')
+        logger.debug('freed up job resources')
 
     def allocate(self, jobs):
         """Allocate resources for the given jobs.
@@ -124,7 +124,7 @@ class DefaultAllocator(ResourceAllocator):
                     else:
                         # have try all nodes, but still can not place, then check if we can place some tasks
                         # and place ps and worker alternatively
-                        logger.debug(f'[{self.module_name}] last placed job: {job.name}')
+                        logger.debug(f'last placed job: {job.name}')
                         ps_nodes = []
                         worker_nodes = []
                         flag_place_ps = True
@@ -175,8 +175,8 @@ class DefaultAllocator(ResourceAllocator):
                         # break the while loop
                         break
 
-        logger.debug(f'[{self.module_name}] used cpu: {self.cluster.node_used_cpu_list}')
+        logger.debug(f'used cpu: {self.cluster.node_used_cpu_list}')
         toc = time.time()
-        logger.info(f'[{self.module_name}] Finished job placement in {toc - tic:.3f} seconds')
+        logger.info(f'Finished job placement in {toc - tic:.3f} seconds')
 
         return ps_placements, worker_placements

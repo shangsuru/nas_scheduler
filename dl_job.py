@@ -291,11 +291,11 @@ class DLJob():
                             # it is a list of (epoch, loss)
                             self.val_loss_list[i] = stat_dict["val-loss"]
                         else:
-                            logger.info("Job:: " + "progress output does not have progress or val-loss value")
+                            logger.info("progress output does not have progress or val-loss value")
                     else:
-                        logger.info("Job:: " + "the progress output is empty.")
+                        logger.info("the progress output is empty.")
                 except Exception as e:
-                    logger.error("Job:: " + "_read_progress_stats: " + str(e))
+                    logger.error(str(e))
 
             thread = threading.Thread(target=run, args=(self, cmd, i))
             thread.start()
@@ -330,12 +330,12 @@ class DLJob():
                         time.sleep(0.001 * (10 ** counter))
                         counter = counter + 1
                         if counter > 2:
-                            logger.error('Job::_read_training_speed: read training speed timeout.')
+                            logger.error('read training speed timeout.')
                             return
                     stb_speed = float(output.decode("utf-8").replace('\n', '').split(' ')[1])
                     self.speed_list[i] = float('%.3f' % stb_speed)
                 except Exception as e:
-                    logger.error(f'Job::_read_training_speed: {str(e)}')
+                    logger.error(str(e))
 
             thread = threading.Thread(target=run, args=(self, cmd, i))
             thread.start()
@@ -409,7 +409,7 @@ class DLJob():
             - Reading data
             - Submitting job to k8s
         """
-        logger.info(f'[dl_job] starting job {self.name} ...')
+        logger.info(f'starting job {self.name} ...')
 
         # job working dir on host
         os.makedirs(self.dir)

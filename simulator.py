@@ -9,7 +9,6 @@ Options:
 """
 
 import os
-import sys
 import time
 import signal
 import random
@@ -36,32 +35,33 @@ def exit_gracefully(signum, frame):
 signal.signal(signal.SIGINT, exit_gracefully)
 signal.signal(signal.SIGTERM, exit_gracefully)
 
+
+def prepare_job_repo():
+    job_repo = list()
+    for filename in Path('job_repo').glob('*.yaml'):
+        with open(filename, 'r') as f:
+            job_repo.append(yaml.full_load(f))
+
+    return job_repo
+
+
 class Simulator(Handler):
     def __init__(self):
         super().__init__(hub.connection, entity='simulator', daemon=False)
         self.job_dict = dict()
         self.counter = 0
-        self.module_name = 'simulator'
         self.generate_jobs()
         self.initiated = threading.Event()
-        hub.push(Payload(None, self.module_name, 'reset'), 'timer')
+        hub.push(Payload(None, self.entity, 'reset'), 'timer')
 
     def stop(self):
         super().stop()
-        logger.debug(f'[simulator] submitted {self.counter} jobs')
-        logger.debug(f'[simulator] exited.')
-
-    def __prepare_job_repo(self):
-        job_repo = list()
-        for filename in Path('job_repo').glob('*.yaml'):
-            with open(filename, 'r') as f:
-                job_repo.append(yaml.full_load(f))
-
-        return job_repo
+        logger.debug(f'submitted {self.counter} jobs')
+        logger.debug(f'exited.')
 
     def generate_jobs(self):
         tic = time.time()
-        jobrepo = self.__prepare_job_repo()
+        jobrepo = prepare_job_repo()
 
         random.seed(config.RANDOM_SEED)  # make each run repeatable
 
@@ -80,9 +80,8 @@ class Simulator(Handler):
                 self.job_dict[job.arrival_slot] = [job]
 
         toc = time.time()
-        logger.debug(f'[simulator] has generated {config.TOT_NUM_JOBS} jobs')
-        logger.debug(f'[simulator] time to generate jobs: {toc - tic:.3f} seconds.')
-
+        logger.debug(f'has generated {config.TOT_NUM_JOBS} jobs')
+        logger.debug(f'time to generate jobs: {toc - tic:.3f} seconds.')
 
     def submit_job(self, t):
         # put jobs into queue
@@ -99,7 +98,7 @@ class Simulator(Handler):
         hub.push(msg, 'scheduler')
 
         if self.counter == config.TOT_NUM_JOBS:
-            logger.debug(f'[simulator] initiated stop')
+            logger.debug(f'initiated stop')
             self.stop()
 
     def process(self, msg):
