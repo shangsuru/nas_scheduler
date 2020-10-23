@@ -9,6 +9,7 @@ from timer import Timer
 from log import logger
 from cluster import Cluster
 from schedulers.optimus import OptimusScheduler
+from schedulers.fifo import FIFOScheduler
 from progressor import Progressor
 from statsor import Statsor
 
@@ -30,7 +31,13 @@ def main():
 
     # start the modules/workers
     timer = Timer()
-    scheduler = OptimusScheduler(cluster, timer)
+    if config.JOB_SCHEDULER == 'optimus':
+        scheduler = OptimusScheduler(cluster, timer)
+    elif config.JOB_SCHEDULER == 'fifo':
+        scheduler = FIFOScheduler(cluster, timer)
+    else:
+        logger.error('Daemon: Scheduler ' + config.JOB_SCHEDULER + ' not found.')
+
     progressor = Progressor(timer)
     statsor = Statsor(timer, scheduler, progressor, cluster)
 

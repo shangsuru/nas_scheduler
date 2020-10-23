@@ -13,12 +13,12 @@ envs:
 
 resources:
   ps:
-    num_ps: 1
+    num_ps: 0
     ps_cpu : 3
     ps_mem : 9
     ps_bw : 0
   worker:
-    num_worker: 1
+    num_worker: 0
     worker_cpu : 2
     worker_mem : 8
     worker_gpu : 1

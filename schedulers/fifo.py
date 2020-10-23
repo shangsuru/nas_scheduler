@@ -22,39 +22,32 @@ class FIFOScheduler(SchedulerBase):
     def _schedule(self):
         fifo_queue = queue.PriorityQueue()
         for job in self.uncompleted_jobs:
-            fifo_queue.put((job.arrv_time, job))
+            fifo_queue.put((job.arrival_time, job))
+
+        self.cluster.used_cpu = 0
+        self.cluster.used_mem = 0
+        self.cluster.used_bw = 0
+        self.cluster.used_gpu = 0
 
         flag = False
         while not fifo_queue.empty():
             (_, job) = fifo_queue.get()
 
-            for i in range(job.resources.ps.num_ps + job.resources.worker.num_worker):
+            cpu_req = job.resources.ps.ps_cpu + job.resources.worker.worker_cpu
+            mem_req = job.resources.ps.ps_mem + job.resources.worker.worker_mem
+            bw_req = job.resources.ps.ps_bw + job.resources.worker.worker_bw
+            gpu_req = job.resources.worker.worker_gpu
 
-                if job.type == "ps":
-                    cpu_req = job.resources.ps.ps_cpu
-                    mem_req = job.resources.ps.ps_mem
-                    bw_req = job.resources.ps.ps_bw
-                    gpu_req = 0
-                elif job.type == "worker":
-                    cpu_req = job.worker_cpu
-                    mem_req = job.worker_mem
-                    bw_req = job.worker_bw
-                    gpu_req = job.worker_gpu
-
-                suff_resr = self.cluster.check_cluster_resource_full(cpu_req, mem_req, bw_req, gpu_req)
-                if suff_resr:
-                    if job.type == "ps":
-                        job.resources.ps.num_ps += 1
-                    elif job.type == "worker":
-                        job.resources.ps.num_worker += 1
-                    self.cluster.used_cpu += cpu_req
-                    self.cluster.used_mem += mem_req
-                    self.cluster.used_bw += bw_req
-                    self.cluster.used_gpu += gpu_req
-                else: # try next job before quitting
-                    flag = True
-                    continue
-                if flag:
-                    break
-
-
+            suff_resr = self.cluster.check_cluster_resource_full(cpu_req, mem_req, bw_req, gpu_req)
+            if suff_resr:
+                job.resources.ps.num_ps += 1
+                job.resources.worker.num_worker += 1
+                self.cluster.used_cpu += cpu_req
+                self.cluster.used_mem += mem_req
+                self.cluster.used_bw += bw_req
+                self.cluster.used_gpu += gpu_req
+            else: # try next job before quitting
+                flag = True
+                continue
+            if flag:
+                break

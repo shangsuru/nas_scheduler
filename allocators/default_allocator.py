@@ -47,7 +47,7 @@ class DefaultAllocator(ResourceAllocator):
         # sort jobs based on num_ps and num_worker
         job_sort_queue = PriorityQueue()
         for job in jobs:
-            job_sort_queue.put((job.resources.ps.num_ps + job.resources.worker.num_worker, job))
+            job_sort_queue.put(((job.resources.ps.num_ps + job.resources.worker.num_worker)*(-1), job))
 
         cpu_avail_queue = self.cluster.sort_nodes('cpu')
 
