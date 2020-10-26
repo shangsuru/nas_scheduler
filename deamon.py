@@ -36,7 +36,7 @@ def main():
     elif config.JOB_SCHEDULER == 'fifo':
         scheduler = FIFOScheduler(cluster, timer)
     else:
-        logger.error('Scheduler ' + config.JOB_SCHEDULER + ' not found.')
+        logger.error(f'Scheduler {config.JOB_SCHEDULER} not found.')
 
     progressor = Progressor(timer)
     statsor = Statsor(timer, scheduler, progressor, cluster)

@@ -15,7 +15,6 @@ class FIFOScheduler(SchedulerBase):
             timer (Timer): timer instance
         """
         super().__init__(cluster, timer)
-        self.module_name = 'fifo_scheduler'
         self.allocator = DefaultAllocator(cluster)
         self.start()
 
