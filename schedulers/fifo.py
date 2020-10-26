@@ -3,7 +3,6 @@ import queue
 from communication import hub, Payload
 from schedulers.scheduler_base import SchedulerBase
 from allocators.default_allocator import DefaultAllocator
-import numpy as np
 
 from log import logger
 
@@ -37,16 +36,17 @@ class FIFOScheduler(SchedulerBase):
             bw_req = job.resources.ps.ps_bw + job.resources.worker.worker_bw
             gpu_req = job.resources.worker.worker_gpu
 
-            suff_resr = self.cluster.check_cluster_resource_full(cpu_req, mem_req, bw_req, gpu_req)
-            if suff_resr:
-                job.resources.ps.num_ps += 1
-                job.resources.worker.num_worker += 1
-                self.cluster.used_cpu += cpu_req
-                self.cluster.used_mem += mem_req
-                self.cluster.used_bw += bw_req
-                self.cluster.used_gpu += gpu_req
-            else: # try next job before quitting
-                flag = True
-                continue
+            for i in range(config.MAX_NUM_WORKERS):
+                suff_resr = self.cluster.check_cluster_resource_full(cpu_req, mem_req, bw_req, gpu_req)
+                if suff_resr:
+                    job.resources.ps.num_ps += 1
+                    job.resources.worker.num_worker += 1
+                    self.cluster.used_cpu += cpu_req
+                    self.cluster.used_mem += mem_req
+                    self.cluster.used_bw += bw_req
+                    self.cluster.used_gpu += gpu_req
+                else: # try next job before quitting
+                    flag = True
+                    break
             if flag:
                 break
