@@ -22,6 +22,7 @@ from log import logger
 from cluster import Cluster
 from schedulers.optimus import OptimusScheduler
 from schedulers.fifo import FIFOScheduler
+from schedulers.drf import DRFScheduler
 from progressor import Progressor
 from statsor import Statsor
 
@@ -60,6 +61,8 @@ def main():
         scheduler = OptimusScheduler(cluster, timer)
     elif config.JOB_SCHEDULER == 'fifo':
         scheduler = FIFOScheduler(cluster, timer)
+    elif config.JOB_SCHEDULER == 'drf':
+        scheduler = DRFScheduler(cluster, timer)
     else:
         logger.error(f'Scheduler {config.JOB_SCHEDULER} not found.')
 
