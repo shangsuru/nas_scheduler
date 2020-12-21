@@ -31,6 +31,7 @@ class DLJob():
         dir (str): job working directory as in '{dir_prefix}/{name}-{timestamp}/}'
 
     """
+    ps_placement: None
 
     def __init__(self, uid, workload_id, dir_prefix, conf):
         """Initializes a job object.
@@ -469,3 +470,33 @@ class DLJob():
 
             # delete job working dir
             shutil.rmtree(self.dir)
+
+    def get_total_required_resources(self):
+        """Returns the required amount of resources to host this job."""
+        required_cpu = (
+                self.resources.worker.num_worker * self.resources.worker.worker_cpu
+                + (
+                    0
+                    if self.metadata.use_horovod
+                    else self.resources.ps.num_ps * self.resources.ps.ps_cpu
+                )
+        )
+        required_mem = (
+                self.resources.worker.num_worker * self.resources.worker.worker_mem
+                + (
+                    0
+                    if self.metadata.use_horovod
+                    else self.resources.ps.num_ps * self.resources.ps.ps_mem
+                )
+        )
+        required_bw = (
+                self.resources.worker.num_worker * self.resources.worker.worker_bw
+                + (
+                    0
+                    if self.metadata.use_horovod
+                    else self.resources.ps.num_ps * self.resources.ps.ps_bw
+                )
+        )
+        required_gpu = self.resources.worker.num_worker * self.resources.worker.worker_gpu
+
+        return [required_cpu, required_mem, required_bw, required_gpu]
