@@ -55,7 +55,7 @@ class Cluster():
             self.used_gpu + gpu_req > self.num_gpu
             ])
 
-    def check_node_resource_full(self, node_id, cpu_req, mem_req, bw_req=0, gpu_req=0):
+    def check_node_resource_full(self, node_id, cpu_req, mem_req, bw_req=0, gpu_req=0, num=1):
         """Check whether resources on a given node is full.
 
         Args:
@@ -64,14 +64,14 @@ class Cluster():
             mem_req (int): amount of memory needed
             bw_req (int): amount of bandwidth needed (default=0)
             gpu_req (int): number of gpu cards needed (default=0)
-
+            num (int): amount of workers of parameter servers to be placed on node (default=1)
         Returns:
             bool: True if available resources are sufficient for the job, False otherwise.
         """
-        return not any([self.node_used_cpu_list[node_id] + cpu_req > config.CPU_PER_NODE,
-            self.node_used_mem_list[node_id] + mem_req > config.MEM_PER_NODE,
-            self.node_used_bw_list[node_id] + bw_req > config.BW_PER_NODE,
-            self.node_used_gpu_list[node_id] + gpu_req > config.BW_PER_NODE
+        return not any([self.node_used_cpu_list[node_id] + num*cpu_req > config.CPU_PER_NODE,
+            self.node_used_mem_list[node_id] + num*mem_req > config.MEM_PER_NODE,
+            self.node_used_bw_list[node_id] + num*bw_req > config.BW_PER_NODE,
+            self.node_used_gpu_list[node_id] + num*gpu_req > config.BW_PER_NODE
             ])
 
     def assign_resources(self, job, task_type, task_num, node_id):
@@ -114,10 +114,12 @@ class Cluster():
             self.node_used_bw_list[node_id] -= job.resources.worker.worker_bw * task_num
             self.node_used_gpu_list[node_id] -= job.resources.worker.worker_gpu * task_num
 
-    def sort_nodes(self, resource):
+    def sort_nodes_queue(self, resource):
         """Sort nodes based on available resource.
         Args:
             resource (str): name of the resource. e.g. gpu, cpu
+        Returns:
+            PriorityQueue containing nodes with descending resources
         """
         sorted_queue = PriorityQueue()
         for i in range(self.num_nodes):
@@ -129,6 +131,31 @@ class Cluster():
                 sorted_queue.put((self.node_used_mem_list[i], i))
 
         return sorted_queue
+
+    def sort_nodes_list(self, resource):
+        """Sort nodes based on available resource.
+        Args:
+            resource (str): name of the resource. e.g. gpu, cpu
+        Returns:
+            List containing nodes with descending resources
+        """
+        sorted_list = []
+        for i in range(self.num_nodes):
+            if resource == 'cpu':
+                sorted_list.append((self.node_used_cpu_list[i], i))
+            elif resource == 'gpu':
+                sorted_list.append((self.node_used_gpu_list[i], i))
+            elif resource == 'mem':
+                sorted_list.append((self.node_used_mem_list[i], i))
+
+        return sorted_list.sort(key= lambda x: x[0])
+
+    def get_available_resources(self, node_index):
+        unused_cpu = self.config.CPU_PER_NODE - self.node_used_cpu_list[node_index]
+        unused_memory = self.config.MEM_PER_NODE - self.cluster.node_used_mem_list[node_index]
+        unused_bw = self.config.BW_PER_NODE - self.cluster.node_used_bw_list[node_index]
+        unused_gpu = self.config.GPU_PER_NODE - self.cluster.node_used_gpu_list[node_index]
+        return [unused_cpu, unused_memory, unused_bw, unused_gpu]
 
 
 
