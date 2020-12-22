@@ -27,15 +27,12 @@ class DefaultAllocator(ResourceAllocator):
             worker_placements (list of int): mapping of job.uid to the nodes used for allocating the workers
         """
         tic = time.time()
-        print("Started Allocator" + str(len(jobs)))
+
         # sort jobs ascending based on num_ps and num_worker (smallest job first)
         sorted_job_queue = PriorityQueue()
         for job in jobs:
-            resource_usage = (
-                job.resources.worker.num_worker
-                if job.metadata.use_horovod
-                else job.resources.ps.num_ps + job.resources.worker.num_worker
-            )
+            resource_usage = job.resources.worker.num_worker if job.metadata.dist_strategy == 'allreduce' else \
+                (job.resources.ps.num_ps + job.resources.worker.num_worker)
             sorted_job_queue.put((resource_usage, job))
 
         ps_placements = dict()
@@ -46,7 +43,7 @@ class DefaultAllocator(ResourceAllocator):
             # check if node resource can satisfy the job's resource requirements
             ps_nodes, worker_nodes = self.allocate_job(job)
 
-            if (len(ps_nodes) > 0 and len(worker_nodes) > 0):
+            if len(ps_nodes) > 0 and len(worker_nodes) > 0:
                 # in this case the resources were successfully allocated
                 ps_placements[job.uid] = [self.cluster.nodes[node] for node in ps_nodes]
                 job.resources.ps.num_ps = len(ps_placements[job.uid])
@@ -109,7 +106,7 @@ class DefaultAllocator(ResourceAllocator):
                         job.resources.worker.worker_cpu, job.resources.worker.worker_mem,
                         job.resources.worker.worker_bw, job.resources.worker.worker_cpu])
 
-                condition_ps = (i < job.resources.ps.num_ps and not job.metadata.use_horovod)
+                condition_ps = (i < job.resources.ps.num_ps and job.metadata.dist_strategy == "ps")
                 if condition_ps:  # if horovod is used we don't need the ps
                     available_resources_minus_job_resources[i % node_amount] -= np.array([job.resources.ps.ps_cpu,
                             job.resources.ps.ps_mem, job.resources.ps.ps_bw, 0])
@@ -124,7 +121,7 @@ class DefaultAllocator(ResourceAllocator):
                     worker_nodes = []
                     break  # no resources left to allocate another worker and ps, try with one more node
 
-            if ((len(ps_nodes) == job.resources.ps.num_ps or not job.metadata.use_horovod)
+            if ((len(ps_nodes) == job.resources.ps.num_ps or job.metadata.dist_strategy == "ps")
                 and len(worker_nodes) == job.resources.worker.num_worker or node_amount == len(sorted_nodes_list)):
                 # in this case the job fits or we used the maximum node amount, so we allocate the resources
                 for node in ps_nodes:
