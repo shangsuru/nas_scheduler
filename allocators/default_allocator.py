@@ -12,9 +12,9 @@ class DefaultAllocator(ResourceAllocator):
     def allocate(self, jobs):
         """Allocate resources for the given jobs.
         We place jobs in increasing order of their resource demand (i.e., smallest job first) in order
-        to avoid job starvation. If the job uses horovod, the job doesn't require parameter servers, which will
-        be taken into account when sorting the jobs. We try allocating resources until all jobs are placed
-        or until there aren't enough resources left to allocate a job.
+        to avoid job starvation. If the job uses the allreduce distribution strategy, we know that num_ps == 0.
+        We try allocating resources until all jobs are placed or until there aren't enough resources left
+        to allocate a job.
         Note that the number of jobs the servers can accommodate might be smaller than the number of
         jobs we allocate resource to through the resource allocation algorithm (which considers overall
         resource capacity in the entire cluster).
@@ -31,8 +31,7 @@ class DefaultAllocator(ResourceAllocator):
         # sort jobs ascending based on num_ps and num_worker (smallest job first)
         sorted_job_queue = PriorityQueue()
         for job in jobs:
-            resource_usage = job.resources.worker.num_worker if job.metadata.dist_strategy == 'allreduce' else \
-                (job.resources.ps.num_ps + job.resources.worker.num_worker)
+            resource_usage = job.resources.ps.num_ps + job.resources.worker.num_worker
             sorted_job_queue.put((resource_usage, job))
 
         ps_placements = dict()
@@ -90,8 +89,9 @@ class DefaultAllocator(ResourceAllocator):
         required_resources = job.get_total_required_resources()
 
         min_req_nodes = np.ceil(np.array([required_resources[0] / self.config.CPU_PER_NODE,
-                    required_resources[1] / self.config.MEM_PER_NODE, required_resources[2] / self.config.BW_PER_NODE,
-                    required_resources[3] / self.config.GPU_PER_NODE]))
+                                          required_resources[1] / self.config.MEM_PER_NODE,
+                                          required_resources[2] / self.config.BW_PER_NODE,
+                                          required_resources[3] / self.config.GPU_PER_NODE]))
 
         # Now we can compute the amount of nodes we at least need to host the job, this saves unnecessary computations
         minimal_required_node_amount = np.max(min_req_nodes)
@@ -100,29 +100,27 @@ class DefaultAllocator(ResourceAllocator):
             limit = max(job.resources.ps.num_ps, job.resources.worker.num_worker)
             available_resources_minus_job_resources = available_resources.copy()
             for i in range(limit):
-                condition_worker = i < job.resources.worker.num_worker
-                if condition_worker:
-                    available_resources_minus_job_resources[i % node_amount] -= np.array([
-                        job.resources.worker.worker_cpu, job.resources.worker.worker_mem,
-                        job.resources.worker.worker_bw, job.resources.worker.worker_cpu])
+                if i < job.resources.worker.num_worker:
+                    res_usage = np.array([job.resources.worker.worker_cpu, job.resources.worker.worker_mem,
+                                          job.resources.worker.worker_bw, job.resources.worker.worker_cpu])
+                    available_resources_minus_job_resources[i % node_amount] -= res_usage
 
-                condition_ps = (i < job.resources.ps.num_ps and job.metadata.dist_strategy == "ps")
-                if condition_ps:  # if horovod is used we don't need the ps
-                    available_resources_minus_job_resources[i % node_amount] -= np.array([job.resources.ps.ps_cpu,
-                            job.resources.ps.ps_mem, job.resources.ps.ps_bw, 0])
+                if i < job.resources.ps.num_ps:
+                    res_usage = np.array([job.resources.ps.ps_cpu, job.resources.ps.ps_mem, job.resources.ps.ps_bw, 0])
+                    available_resources_minus_job_resources[i % node_amount] -= res_usage
 
-                if np.min(available_resources_minus_job_resources) >= 0: # allocate the resources in the cluster
-                    if condition_worker:
+                if np.min(available_resources_minus_job_resources) >= 0:  # allocate the resources in the cluster
+                    if i < job.resources.worker.num_worker:
                         worker_nodes.append(sorted_nodes_list[i % node_amount])
-                    if condition_ps:
+                    if i < job.resources.ps.num_ps:
                         ps_nodes.append(sorted_nodes_list[i % node_amount])
-                elif node_amount != len(sorted_nodes_list):     # if we are using all nodes, we don't reset the progress
+                elif node_amount != len(sorted_nodes_list):  # if we are using all nodes, we don't reset the progress
                     ps_nodes = []
                     worker_nodes = []
                     break  # no resources left to allocate another worker and ps, try with one more node
 
-            if ((len(ps_nodes) == job.resources.ps.num_ps or job.metadata.dist_strategy == "ps")
-                and len(worker_nodes) == job.resources.worker.num_worker or node_amount == len(sorted_nodes_list)):
+            if (len(ps_nodes) == job.resources.ps.num_ps and len(worker_nodes) == job.resources.worker.num_worker) or \
+                    node_amount == len(sorted_nodes_list):
                 # in this case the job fits or we used the maximum node amount, so we allocate the resources
                 for node in ps_nodes:
                     self.cluster.assign_resources(job, "ps", 1, node)
