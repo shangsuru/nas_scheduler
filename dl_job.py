@@ -473,30 +473,13 @@ class DLJob():
 
     def get_total_required_resources(self):
         """Returns the required amount of resources to host this job."""
-        required_cpu = (
-                self.resources.worker.num_worker * self.resources.worker.worker_cpu
-                + (
-                    0
-                    if self.metadata.use_horovod
-                    else self.resources.ps.num_ps * self.resources.ps.ps_cpu
-                )
-        )
-        required_mem = (
-                self.resources.worker.num_worker * self.resources.worker.worker_mem
-                + (
-                    0
-                    if self.metadata.use_horovod
-                    else self.resources.ps.num_ps * self.resources.ps.ps_mem
-                )
-        )
-        required_bw = (
-                self.resources.worker.num_worker * self.resources.worker.worker_bw
-                + (
-                    0
-                    if self.metadata.use_horovod
-                    else self.resources.ps.num_ps * self.resources.ps.ps_bw
-                )
-        )
+        # if we use the dist_strategy ps we also need to count the resources required by the parameter servers
+        required_cpu = self.resources.worker.num_worker * self.resources.worker.worker_cpu + \
+                    (self.resources.ps.num_ps * self.resources.ps.ps_cpu if self.metadata.dist_strategy == "ps" else 0)
+        required_mem = self.resources.worker.num_worker * self.resources.worker.worker_mem + \
+                    (self.resources.ps.num_ps * self.resources.ps.ps_mem if self.metadata.dist_strategy == "ps" else 0)
+        required_bw = self.resources.worker.num_worker * self.resources.worker.worker_bw + \
+                    (self.resources.ps.num_ps * self.resources.ps.ps_bw if self.metadata.dist_strategy == "ps" else 0)
         required_gpu = self.resources.worker.num_worker * self.resources.worker.worker_gpu
 
         return [required_cpu, required_mem, required_bw, required_gpu]

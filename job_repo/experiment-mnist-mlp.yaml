@@ -4,7 +4,7 @@ metadata:
   batch_size: 32
   scale_bs: True
   num_examples: 60000
-  use_horovod: False
+  dist_strategy: 'ps'
 
 envs:
   kv_store_big_array_bound: '1000000'
