@@ -18,6 +18,7 @@ class XCHQueues():
         'statsor': Queue('statsor', exchange, routing_key='statsor'),
         'timer': Queue('timer', exchange, routing_key='timer'),
         'simulator': Queue('simulator', exchange, routing_key='simulator'),
+        'heartbeat': Queue('heartbeat', exchange, routing_key='heartbeat'),
         'broadcast': Broadcast(name='broadcast', exchange=broadcast_exchange, expires=3),
     }
 
