@@ -25,6 +25,8 @@ from schedulers.fifo import FIFOScheduler
 from schedulers.drf import DRFScheduler
 from progressor import Progressor
 from statsor import Statsor
+from heartbeat import Heartbeat
+
 
 docopt_schema = Schema({
     '--vhost': Use(str),
@@ -68,6 +70,9 @@ def main():
 
     progressor = Progressor(timer)
     statsor = Statsor(timer, scheduler, progressor, cluster)
+    heartbeat = Heartbeat(scheduler, cluster)
+
+    heartbeat.start()
 
     # check for kill signal
     signal.pause()
