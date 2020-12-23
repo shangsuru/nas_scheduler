@@ -473,7 +473,7 @@ class DLJob():
             shutil.rmtree(self.dir)
 
     def get_total_required_resources(self):
-        """Returns the required amount of resources to host this job."""
+        """Returns: dict containing the required amount of resources to host this job."""
         # if we use the dist_strategy ps we also need to count the resources required by the parameter servers
         required_cpu = self.resources.worker.num_worker * self.resources.worker.worker_cpu + \
                        self.resources.ps.num_ps * self.resources.ps.ps_cpu
@@ -483,4 +483,4 @@ class DLJob():
                       self.resources.ps.num_ps * self.resources.ps.ps_bw
         required_gpu = self.resources.worker.num_worker * self.resources.worker.worker_gpu
 
-        return [required_cpu, required_mem, required_bw, required_gpu]
+        return {'cpu': required_cpu, 'mem': required_mem, 'bw': required_bw, 'gpu': required_gpu}

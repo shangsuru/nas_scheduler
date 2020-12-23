@@ -1,5 +1,3 @@
-from queue import PriorityQueue
-
 import config
 from log import logger
 
@@ -114,25 +112,7 @@ class Cluster():
             self.node_used_bw_list[node_id] -= job.resources.worker.worker_bw * task_num
             self.node_used_gpu_list[node_id] -= job.resources.worker.worker_gpu * task_num
 
-    def sort_nodes_queue(self, resource):
-        """Sort nodes based on available resource.
-        Args:
-            resource (str): name of the resource. e.g. gpu, cpu
-        Returns:
-            PriorityQueue containing nodes with descending resources
-        """
-        sorted_queue = PriorityQueue()
-        for i in range(self.num_nodes):
-            if resource == 'cpu':
-                sorted_queue.put((self.node_used_cpu_list[i], i))
-            elif resource == 'gpu':
-                sorted_queue.put((self.node_used_gpu_list[i], i))
-            elif resource == 'mem':
-                sorted_queue.put((self.node_used_mem_list[i], i))
-
-        return sorted_queue
-
-    def sort_nodes_list(self, resource):
+    def sort_nodes(self, resource):
         """Sort nodes based on available resource.
         Args:
             resource (str): name of the resource. e.g. gpu, cpu
@@ -151,11 +131,14 @@ class Cluster():
         return sorted_list.sort(key= lambda x: x[0])
 
     def get_available_resources(self, node_index):
+        """Sort nodes based on available resource.
+        Args:
+            node_index (str): index of the node
+        Returns:
+            dictionary containing the amount of unused resources on the node
+        """
         unused_cpu = self.config.CPU_PER_NODE - self.node_used_cpu_list[node_index]
         unused_memory = self.config.MEM_PER_NODE - self.cluster.node_used_mem_list[node_index]
         unused_bw = self.config.BW_PER_NODE - self.cluster.node_used_bw_list[node_index]
         unused_gpu = self.config.GPU_PER_NODE - self.cluster.node_used_gpu_list[node_index]
         return [unused_cpu, unused_memory, unused_bw, unused_gpu]
-
-
-
