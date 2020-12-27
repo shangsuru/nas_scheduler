@@ -1,7 +1,6 @@
+import config
 import numpy as np
 from .allocator_base import ResourceAllocator
-import config
-from log import logger
 
 
 class DefaultAllocator(ResourceAllocator):

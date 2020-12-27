@@ -66,10 +66,10 @@ class Cluster():
         Returns:
             bool: True if available resources are sufficient for the job, False otherwise.
         """
-        return not any([self.node_used_cpu_list[node_id] + num*cpu_req > config.CPU_PER_NODE,
-            self.node_used_mem_list[node_id] + num*mem_req > config.MEM_PER_NODE,
-            self.node_used_bw_list[node_id] + num*bw_req > config.BW_PER_NODE,
-            self.node_used_gpu_list[node_id] + num*gpu_req > config.BW_PER_NODE
+        return not any([self.node_used_cpu_list[node_id] + num * cpu_req > config.CPU_PER_NODE,
+            self.node_used_mem_list[node_id] + num * mem_req > config.MEM_PER_NODE,
+            self.node_used_bw_list[node_id] + num * bw_req > config.BW_PER_NODE,
+            self.node_used_gpu_list[node_id] + num * gpu_req > config.BW_PER_NODE
             ])
 
     def assign_resources(self, job, task_type, task_num, node_id):
