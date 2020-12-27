@@ -5,36 +5,89 @@ from log import logger
 
 class Cluster():
     def __init__(self):
-        self.num_cpu = None
-        self.num_mem = None
-        self.num_bw = None
-        self.num_gpu = None
+        self.nodes = config.NODE_LIST
         self.used_cpu = 0
         self.used_mem = 0
         self.used_gpu = 0
         self.used_bw = 0
-        self._set_cluster_config()
 
-        self.node_used_cpu_list = [0 for i in range(len(config.NODE_LIST))]
-        self.node_used_mem_list = [0 for i in range(len(config.NODE_LIST))]
-        self.node_used_bw_list = [0 for i in range(len(config.NODE_LIST))]
-        self.node_used_gpu_list = [0 for i in range(len(config.NODE_LIST))]
+        self.node_used_cpu_list = [0 for i in range(self.num_nodes)]
+        self.node_used_mem_list = [0 for i in range(self.num_nodes)]
+        self.node_used_bw_list = [0 for i in range(self.num_nodes)]
+        self.node_used_gpu_list = [0 for i in range(self.num_nodes)]
 
-    def _set_cluster_config(self):
-        """Sets the cluster details, such as nodes, memory, bandwidth and gpus.
+    @property
+    def num_nodes(self):
+        """The number of computing nodes in the cluster."""
+        return len(self.nodes)
+
+    @property
+    def nodes(self):
+        """The list of computing nodes in the cluster."""
+        return self._nodes
+
+    @nodes.setter
+    def nodes(self, nodes):
+        self._nodes = nodes
+
+    @property
+    def num_cpu(self):
+        """The amount of central processing units in the cluster."""
+        return self.num_nodes * config.CPU_PER_NODE
+
+    @property
+    def num_mem(self):
+        """The amount of memory in the cluster. TODO: unit?"""
+        return self.num_nodes * config.MEM_PER_NODE
+
+    @property
+    def num_bw(self):
+        """The amount of bandwidth in the cluster. TODO: unit?"""
+        return self.num_nodes * config.BW_PER_NODE
+
+    @property
+    def num_gpu(self):
+        """The amount of graphical processing units in the cluster."""
+        return self.num_nodes * config.GPU_PER_NODE
+
+    def add_node(self, node):
+        """Adds a node to the cluster at run-time.
+
+        Args:
+            node (str): The node to add to the cluster.
         """
-        self.num_nodes = len(config.NODE_LIST)
-        self.nodes = config.NODE_LIST
-        cpu_per_node = config.CPU_PER_NODE
-        mem_per_node = config.MEM_PER_NODE
-        bw_per_node = config.BW_PER_NODE
-        gpu_per_node = config.GPU_PER_NODE
-        self.num_cpu = self.num_nodes * cpu_per_node
-        self.num_mem = self.num_nodes * mem_per_node
-        self.num_bw = self.num_nodes * bw_per_node
-        self.num_gpu = self.num_nodes * gpu_per_node
+        try:
+            node_index = self.get_node_index(node)
+        except ValueError as e:
+            logger.error("Tried to take a non-online node offline")
+            return
+
+        self.nodes.pop(node_index)
+        self.node_used_cpu_list.pop(node_index)
+        self.node_used_mem_list.pop(node_index)
+        self.node_used_bw_list.pop(node_index)
+        self.node_used_gpu_list.pop(node_index)
+
+    def remove_node(self, node):
+        """Removes a node from the cluster at run-time.
+
+        Args:
+            node (str): The node to remove from the cluster.
+        """
+        self.nodes.append(node)
+        self.node_used_cpu_list.append(0)
+        self.node_used_mem_list.append(0)
+        self.node_used_bw_list.append(0)
+        self.node_used_gpu_list.append(0)
 
     def get_node_index(self, node):
+        """Get the index of a node in the nodes list.
+
+        Args:
+            node (str): The node to return the index for.
+        Returns:
+            The index of the node int the nodes list.
+        """
         return self.nodes.index(node)
 
     def check_cluster_resource_full(self, cpu_req, mem_req, bw_req=0, gpu_req=0):
