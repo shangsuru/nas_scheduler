@@ -1,5 +1,7 @@
 import numpy as np
 from .allocator_base import ResourceAllocator
+import config
+from log import logger
 
 
 class DefaultAllocator(ResourceAllocator):
@@ -28,18 +30,19 @@ class DefaultAllocator(ResourceAllocator):
             ps_nodes (list of int): node indexes used to allocate the resources for the parameter servers
             worker_nodes (list of int): node indexes used to allocate the resources for the workers
         """
-        ps_nodes = [], worker_nodes = []    # these will be filled with the used nodes for hosting the job
+        ps_nodes = []
+        worker_nodes = []    # these will be filled with the used nodes for hosting the job
         sorted_nodes_list = self.cluster.sort_nodes("cpu")   # get nodes sorted by ascending cpu-resource capacity
 
-        available_resources = np.array(shape=(len(sorted_nodes_list), 4))     # matrix to contain available resources
+        available_resources = np.zeros(shape=(len(sorted_nodes_list), 4))     # matrix to contain available resources
         for i in range(len(sorted_nodes_list)):
             used_cpus, node_index = sorted_nodes_list[i]
             # each row of the matrix available_resources contains the resources available for a node in the cluster
             # available_resources[0] e.g. is a list containing 4  ints (cpu, mem, bw, gpu)
-            available_resources.append([self.cluster.get_available_resources(node_index)], axis=0)
+            available_resources[i] = self.cluster.get_available_resources(node_index)
 
         # Now we can compute the amount of nodes we at least need to host the job, this saves unnecessary computations
-        minimal_required_node_amount = self.get_min_req_node_amount()
+        minimal_required_node_amount = self.get_min_req_node_amount(job)
 
         for node_amount in range(minimal_required_node_amount, len(sorted_nodes_list) + 1):
             limit = max(job.resources.ps.num_ps, job.resources.worker.num_worker)
@@ -57,10 +60,11 @@ class DefaultAllocator(ResourceAllocator):
                     available_resources_minus_job_resources[i % node_amount] -= res_usage   # update available resources
 
                 if np.min(available_resources_minus_job_resources) >= 0:  # allocate the resources in the cluster
+                    used_cpus, node_index = sorted_nodes_list[i % node_amount]
                     if i < job.resources.worker.num_worker:
-                        worker_nodes.append(sorted_nodes_list[i % node_amount])
+                        worker_nodes.append(node_index)
                     if i < job.resources.ps.num_ps:
-                        ps_nodes.append(sorted_nodes_list[i % node_amount])
+                        ps_nodes.append(node_index)
                 elif node_amount != len(sorted_nodes_list):  # if we are using all nodes, we don't reset the progress
                     ps_nodes = []           # empty the lists
                     worker_nodes = []
@@ -86,9 +90,9 @@ class DefaultAllocator(ResourceAllocator):
         """
         required_resources = job.get_total_required_resources()
 
-        min_req_nodes = np.ceil(np.array([required_resources['cpu'] / self.config.CPU_PER_NODE,
-                                          required_resources['mem'] / self.config.MEM_PER_NODE,
-                                          required_resources['bw'] / self.config.BW_PER_NODE,
-                                          required_resources['gpu'] / self.config.GPU_PER_NODE]))
+        min_req_nodes = np.ceil(np.array([required_resources['cpu'] / config.CPU_PER_NODE,
+                                          required_resources['mem'] / config.MEM_PER_NODE,
+                                          required_resources['bw'] / config.BW_PER_NODE,
+                                          required_resources['gpu'] / config.GPU_PER_NODE]))
 
-        return np.max(min_req_nodes)
+        return int(np.max(min_req_nodes))
