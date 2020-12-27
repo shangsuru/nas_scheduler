@@ -127,8 +127,8 @@ class Cluster():
                 sorted_list.append((self.node_used_gpu_list[i], i))
             elif resource == 'mem':
                 sorted_list.append((self.node_used_mem_list[i], i))
-
-        return sorted_list.sort(key= lambda x: x[0])
+        sorted_list.sort(key=lambda x: x[0])
+        return sorted_list
 
     def get_available_resources(self, node_index):
         """Sort nodes based on available resource.
@@ -137,8 +137,8 @@ class Cluster():
         Returns:
             dictionary containing the amount of unused resources on the node
         """
-        unused_cpu = self.config.CPU_PER_NODE - self.node_used_cpu_list[node_index]
-        unused_memory = self.config.MEM_PER_NODE - self.cluster.node_used_mem_list[node_index]
-        unused_bw = self.config.BW_PER_NODE - self.cluster.node_used_bw_list[node_index]
-        unused_gpu = self.config.GPU_PER_NODE - self.cluster.node_used_gpu_list[node_index]
+        unused_cpu = config.CPU_PER_NODE - self.node_used_cpu_list[node_index]
+        unused_memory = config.MEM_PER_NODE - self.node_used_mem_list[node_index]
+        unused_bw = config.BW_PER_NODE - self.node_used_bw_list[node_index]
+        unused_gpu = config.GPU_PER_NODE - self.node_used_gpu_list[node_index]
         return [unused_cpu, unused_memory, unused_bw, unused_gpu]
