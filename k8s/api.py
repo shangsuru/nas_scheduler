@@ -45,6 +45,14 @@ class KubeAPI:
         pods = self.get_pods(**kwargs)
         return [utils.rgetattr(pod, attribute) for pod in pods]
 
+    def get_nodes(self):
+        """Queries k8s for all worker nodes.
+
+        Returns:
+            A list of all worker nodes connected to k8s.
+        """
+        return self.kube_api_obj.list_node().items
+
     def get_services(self, namespace=config.k8s_params['namespace'], field_selector=None, label_selector=None):
         """Get k8s services for a given namespace.
         E.g.
