@@ -389,15 +389,11 @@ class OptimusScheduler(SchedulerBase):
         logger.debug(f'estimated speed: {est_speed}')
 
         if est_speed <= 0:
-            if job not in self.not_ready_jobs:
-                self.not_ready_jobs.append(job)
             return
         rem_time = rem_epoch / est_speed
 
         est_speed = self.estimator.est_speed(job, job.resources.ps.num_ps + 1, job.resources.worker.num_worker)
         if est_speed <= 0:
-            if job not in self.not_ready_jobs:
-                self.not_ready_jobs.append(job)
             return
         ps_rem_time = rem_epoch / est_speed
         resource_reqs = (job.resources.ps.ps_cpu, job.resources.ps.ps_mem, job.resources.ps.ps_bw)
@@ -410,8 +406,6 @@ class OptimusScheduler(SchedulerBase):
         # if add worker 1
         est_speed = self.estimator.est_speed(job, job.resources.ps.num_ps, job.resources.worker.num_worker + 1)
         if est_speed <= 0:
-            if job not in self.not_ready_jobs:
-                self.not_ready_jobs.append(job)
             return
         worker_rem_time = rem_epoch / est_speed
         resource_reqs = (
@@ -515,9 +509,6 @@ class OptimusScheduler(SchedulerBase):
             else:
                 # no enough resource
                 break
-
-        # TODO: how to handle not_ready_jobs
-        logger.debug(f'not ready jobs: {self.not_ready_jobs}')
 
         # check the scheduling result
         for job in self.uncompleted_jobs:

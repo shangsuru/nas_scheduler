@@ -21,7 +21,6 @@ class SchedulerBase(Handler, metaclass=abc.ABCMeta):
         self.completed_jobs = []
         self.running_jobs = []
         self.cur_ts_completed_jobs = []
-        self.not_ready_jobs = []
 
         self.scaling_overhead = 0
         self.testing_overhead = 0
