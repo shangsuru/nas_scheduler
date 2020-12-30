@@ -31,6 +31,7 @@ class DLJob():
         dir (str): job working directory as in '{dir_prefix}/{name}-{timestamp}/}'
 
     """
+    ps_placement: None
 
     def __init__(self, uid, workload_id, dir_prefix, conf):
         """Initializes a job object.
@@ -414,8 +415,9 @@ class DLJob():
         # job working dir on host
         os.makedirs(self.dir)
 
-        self.ps_mount_dirs = self.__set_mount_dirs('ps', self.data.host_workdir_prefix) # ps container mount
-        self.worker_mount_dirs = self.__set_mount_dirs('worker', self.data.host_workdir_prefix) # worker container mount
+        self.ps_mount_dirs = self.__set_mount_dirs('ps', self.data.host_workdir_prefix)  # ps container mount
+        self.worker_mount_dirs = self.__set_mount_dirs('worker',
+                                                       self.data.host_workdir_prefix)  # worker container mount
         self.__set_batch_size()
 
         self.running_tasks = self._create_jobs()
@@ -469,3 +471,16 @@ class DLJob():
 
             # delete job working dir
             shutil.rmtree(self.dir)
+
+    def get_total_required_resources(self):
+        """Returns: dict containing the required amount of resources to host this job."""
+        # if we use the dist_strategy ps we also need to count the resources required by the parameter servers
+        required_cpu = self.resources.worker.num_worker * self.resources.worker.worker_cpu + \
+                       self.resources.ps.num_ps * self.resources.ps.ps_cpu
+        required_mem = self.resources.worker.num_worker * self.resources.worker.worker_mem + \
+                       self.resources.ps.num_ps * self.resources.ps.ps_mem
+        required_bw = self.resources.worker.num_worker * self.resources.worker.worker_bw + \
+                      self.resources.ps.num_ps * self.resources.ps.ps_bw
+        required_gpu = self.resources.worker.num_worker * self.resources.worker.worker_gpu
+
+        return {'cpu': required_cpu, 'mem': required_mem, 'bw': required_bw, 'gpu': required_gpu}
