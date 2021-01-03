@@ -75,5 +75,6 @@ class Heartbeat(Handler):
             self.cluster.remove_node(address)
 
             # Remove jobs running on node from running jobs in scheduler
+            # They will then be rescheduled in the next scheduling round.
             running_jobs = self.scheduler.running_jobs
             self.scheduler.running_jobs = [job for job in running_jobs if address not in job.worker_placement]
