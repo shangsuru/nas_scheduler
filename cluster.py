@@ -54,6 +54,18 @@ class Cluster():
         Args:
             node (str): The node to add to the cluster.
         """
+        self.nodes.append(node)
+        self.node_used_cpu_list.append(0)
+        self.node_used_mem_list.append(0)
+        self.node_used_bw_list.append(0)
+        self.node_used_gpu_list.append(0)
+
+    def remove_node(self, node):
+        """Removes a node from the cluster at run-time.
+
+        Args:
+            node (str): The node to remove from the cluster.
+        """
         try:
             node_index = self.get_node_index(node)
         except ValueError as e:
@@ -65,18 +77,6 @@ class Cluster():
         self.node_used_mem_list.pop(node_index)
         self.node_used_bw_list.pop(node_index)
         self.node_used_gpu_list.pop(node_index)
-
-    def remove_node(self, node):
-        """Removes a node from the cluster at run-time.
-
-        Args:
-            node (str): The node to remove from the cluster.
-        """
-        self.nodes.append(node)
-        self.node_used_cpu_list.append(0)
-        self.node_used_mem_list.append(0)
-        self.node_used_bw_list.append(0)
-        self.node_used_gpu_list.append(0)
 
     def get_node_index(self, node):
         """Get the index of a node in the nodes list.
