@@ -1,39 +1,17 @@
-"""NASS Simulator.
-
-Usage:
-    simulator.py [--vhost=<vhost>]
-
-Options:
-    --vhost=<vhost>             RabbitMQ Vhost name [default: /]
-    -h --help                   Show this screen
-"""
-
 import os
+import sys
 import time
-import signal
 import random
 import yaml
 from pathlib import Path
 import threading
-from docopt import docopt
-from schema import Schema, Use, SchemaError
 
 import config
-from communication import Handler, Payload, hub
 from log import logger
 from dl_job import DLJob
-
-docopt_schema = Schema({
-    '--vhost': Use(str),
-})
-
-
-def exit_gracefully(signum, frame):
-    frame.f_locals['self'].stop()
-
-
-signal.signal(signal.SIGINT, exit_gracefully)
-signal.signal(signal.SIGTERM, exit_gracefully)
+from payload import Payload
+import redis
+import pickle
 
 
 def prepare_job_repo():
@@ -45,19 +23,28 @@ def prepare_job_repo():
     return job_repo
 
 
-class Simulator(Handler):
+class Simulator():
     def __init__(self):
-        super().__init__(hub.connection, entity='simulator', daemon=False)
+        self.r = redis.Redis()
+        self.p = self.r.pubsub()
+        self.p.psubscribe(['daemon', 'timer'])
         self.job_dict = dict()
         self.counter = 0
         self.generate_jobs()
         self.initiated = threading.Event()
-        hub.push(Payload(None, self.entity, 'reset'), 'timer')
 
-    def stop(self):
-        super().stop()
-        logger.debug(f'submitted {self.counter} jobs')
-        logger.debug(f'exited.')
+        self.send("reset")
+        logger.debug('Simulator sent reset signal')
+        # wait for ack
+        for msg in self.p.listen():
+            if msg['pattern'] is None:  # TODO
+                continue
+            if msg['channel'] == b'timer':
+                self.submit_job(int(msg['data']))
+            else: 
+                payload = pickle.loads(msg['data'])
+                self.submit_job(int(payload.args[0])) 
+
 
     def generate_jobs(self):
         tic = time.time()
@@ -87,41 +74,31 @@ class Simulator(Handler):
         # put jobs into queue
         logger.info(f'-------*********-------- starting timeslot {t} --------*********-------')
         if t in self.job_dict:
+            jobs_to_submit = []
             for job in self.job_dict[t]:
                 job.arrival_time = time.time()
-                msg = Payload(t, 'simulator', 'submission', {'job': job})
-                hub.push(msg, 'scheduler')  # enqueue jobs at the beginning of each time slot
+                jobs_to_submit.append(job) # enqueue jobs at the beginning of each time slot
                 self.counter += 1
+            self.send("submit", args=jobs_to_submit)
 
         # notify the scheduler that all jobs in this timeslot have been submitted
-        msg = Payload(t, 'simulator', 'submission', None)
-        hub.push(msg, 'scheduler')
+        self.send("init")
 
         if self.counter == config.TOT_NUM_JOBS:
             logger.debug(f'initiated stop')
-            self.stop()
+            sys.exit(0)
+
+
+    def send(self, command, args=None):
+        self.r.publish('client', pickle.dumps(Payload(command, args)))
 
     def process(self, msg):
-        if msg.type == 'reset':
-            self.initiated.set()
-
-        if self.initiated.wait():
+        if msg.type == 'reset' or msg.type == 'update':
             self.submit_job(msg.timestamp)
 
 
 def main():
-    arguments = docopt(__doc__, version=f'v0.1')
-
-    try:
-        arguments = docopt_schema.validate(arguments)
-    except SchemaError as e:
-        exit(e)
-
-    hub.connect(arguments['--vhost'])
-
     sim = Simulator()
-    sim.start()
-    sim.join()
 
 
 if __name__ == '__main__':
