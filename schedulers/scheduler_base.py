@@ -72,7 +72,7 @@ class SchedulerBase(metaclass=abc.ABCMeta):
                 job.status = 'pending'
                 Progressor.remove_from_running_jobs(job)
 
-        asyncio.gather(*coroutine_list)
+        await asyncio.gather(*coroutine_list)
         scaling_toc = time.time()
         self.scaling_overhead += (scaling_toc - scaling_tic)
         logger.debug(f'job starting time: {scaling_toc - scaling_tic:.3f} seconds.')
@@ -99,7 +99,7 @@ class SchedulerBase(metaclass=abc.ABCMeta):
         job.set_ps_placement(ps_placement)
         job.set_worker_placement(worker_placement)
 
-        job.start()
+        await job.start()
         Progressor.add_to_running_jobs(job)
 
     async def _delete(self):

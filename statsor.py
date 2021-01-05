@@ -15,7 +15,7 @@ class Statsor():
 
     stats_txt = "exp-stats.txt"
 
-     @staticmethod
+    @staticmethod
     async def stats(t):
         logger.info(f'time slot: {t}')
         num_submit_jobs = len(Statsor.scheduler.uncompleted_jobs) + len(Statsor.scheduler.completed_jobs)
@@ -83,7 +83,7 @@ class Statsor():
         if len(Statsor.scheduler.completed_jobs) == config.TOT_NUM_JOBS:
             logger.info(f'All jobs are completed!')
         if Statsor.end is None:
-                Statsor.end = runtime
+            Statsor.end = runtime
             stats_dict["makespan"] = float('%.3f' % (Statsor.end))
         else:
             stats_dict["makespan"] = -1
