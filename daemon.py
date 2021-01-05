@@ -24,7 +24,6 @@ async def main():
     cluster = Cluster()
 
     # start the modules/workers
-    """
     if config.JOB_SCHEDULER == 'optimus':
         scheduler = OptimusScheduler(cluster)
     elif config.JOB_SCHEDULER == 'fifo':
@@ -33,8 +32,6 @@ async def main():
         scheduler = DRFScheduler(cluster)
     else:
         logger.error(f'Scheduler {config.JOB_SCHEDULER} not found.')
-    """
-    scheduler = FIFOScheduler(cluster)
     Statsor.scheduler = scheduler
     Statsor.cluster = cluster
 
