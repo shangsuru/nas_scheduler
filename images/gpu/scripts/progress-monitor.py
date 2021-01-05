@@ -8,6 +8,7 @@ import redis
 logging.basicConfig(level=logging.INFO,	format='%(asctime)s.%(msecs)03d %(module)s %(levelname)s: %(message)s', datefmt="%Y-%m-%d %H:%M:%S")
 ROLE = os.getenv("ROLE")
 WORK_DIR = os.getenv("WORK_DIR")
+JOB_NAME = os.getenv("JOB_NAME")
 
 
 def update_progress(logfile, recordfile):
@@ -15,7 +16,8 @@ def update_progress(logfile, recordfile):
     line_number = 0
 
     redis_connection = redis.Redis()
-    keys = ["progress", "train_acc", "train-loss", "val-acc", "val-loss", "time-cost"]
+    keys = ["{}-progress".format(JOB_NAME), "{}-train_acc".format(JOB_NAME), "{}-train-loss".format(JOB_NAME),
+        "{}-val-acc".format(JOB_NAME), "{}-val-loss".format(JOB_NAME), "{}-time-cost".format(JOB_NAME)]
     for key in keys:
         redis_connection.set(key, 0)
 
@@ -30,18 +32,17 @@ def update_progress(logfile, recordfile):
     val_acc = []
     val_loss = []
     time_cost = []
-    stat_dict = dict()
     while True:
         time.sleep(10)
         try:
-            cursize = os.path.getsize(logfile)
+            current_size = os.path.getsize(logfile)
         except OSError as e:
             logging.warning(e)
             continue
-        if cursize == filesize:	# no changes in the log file
+        if current_size == filesize:	# no changes in the log file
             continue
         else:
-            filesize = cursize
+            filesize = current_size
 
         with open(logfile, 'r') as f:
             for i in range(line_number):
@@ -84,13 +85,15 @@ def update_progress(logfile, recordfile):
                         time_cost.append((epoch, float(line[(line.find('=')+1):])))
 
         if len(time_cost) != 0:
-            redis_connection.set("progress_epoch", epoch)
-            redis_connection.set("progress_batch", batch)
-            redis_connection.set("train-acc", train_acc)
-            redis_connection.set("train-loss", train_loss)
-            redis_connection.set("val-acc", val_acc)
-            redis_connection.set("val-loss", val_loss)
-            redis_connection.set("time-cost", sum(x[1] for x in time_cost) / len/(time_cost))
+            redis_connection.set("{}-progress_epoch".format(JOB_NAME), epoch)
+            redis_connection.set("{}-progress_batch".format(JOB_NAME), batch)
+            redis_connection.set("{}-train-acc".format(JOB_NAME), train_acc)
+            redis_connection.set("{}-train-loss".format(JOB_NAME), train_loss)
+            redis_connection.set("{}-val-acc".format(JOB_NAME), val_acc)
+            redis_connection.set("{}-val-loss".format(JOB_NAME), val_loss)
+            redis_connection.set(
+                "{}-time-cost".format(JOB_NAME), sum(x[1] for x in time_cost) / len / (time_cost)
+            )
 
             logging.info('Progress: Epoch: ' + str(epoch) + ', Batch: ' + str(batch) + \
                      ', Train-accuracy: ' + str(train_acc) + ', Train-loss: ' + str(train_loss) + \

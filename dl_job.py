@@ -287,44 +287,31 @@ class DLJob():
         self.progress_list = [(0, 0) for i in range(self.resources.worker.num_worker)]
         self.val_loss_list = [(0, 0) for i in range(self.resources.worker.num_worker)]
 
-        async def run(cmd, i):
-                try:
-                    output = subprocess.check_output(cmd, shell=True).decode('utf-8')
-                    counter = 0
-                    progress_epoch = redis_connection.get("progress_epoch")
-                    progress_batch = redis_connection.get("progress_batch")
-                    val_loss = redis_connection.get("val_loss")
-                    while progress_epoch is None or progress_batch is None \
-                        or val_loss is None:
-                        await asyncio.sleep(0.001 * (10 ** counter))
-                        progress_epoch = redis_connection.get("progress_epoch")
-                        progress_batch = redis_connection.get("progress_batch")
-                        val_loss = redis_connection.get("val_loss")
-                        counter = counter + 1
-                        if counter > 2:
-                            break
-                    if progress_epoch and progress_batch and val_loss:
-                        # should not be empty, even no progress, there should be initialization values written in files.
-                        stat_dict = ast.literal_eval(output.replace('\n', ''))
-                        if "progress" in stat_dict and "val-loss" in stat_dict:
-                            self.progress_list[i] = (progress_epoch, progress_batch)
-
-                            # it is a list of (epoch, loss)
-                            self.val_loss_list[i] = val_loss
-                        else:
-                            logger.info("progress output does not have progress or val-loss value")
-                    else:
-                        logger.info("the progress output is empty.")
-                except Exception as e:
-                    logger.error(str(e))
+        async def run(i):
+            try:
+                counter = 0
+                progress_epoch = redis_connection.get(f"{self.name}-progress_epoch")
+                progress_batch = redis_connection.get(f"{self.name}-progress_batch")
+                val_loss = redis_connection.get(f"{self.name}-val_loss")
+                while progress_epoch is None or progress_batch is None \
+                    or val_loss is None:
+                    await asyncio.sleep(0.001 * (10 ** counter))
+                    progress_epoch = redis_connection.get(f"{self.name}-progress_epoch")
+                    progress_batch = redis_connection.get(f"{self.name}-progress_batch")
+                    val_loss = redis_connection.get(f"{self.name}-val_loss")
+                    counter = counter + 1
+                    if counter > 2:
+                        break
+                if progress_epoch and progress_batch and val_loss:
+                    # should not be empty, even no progress, there should be initialization values written in files.
+                    self.progress_list[i] = (progress_epoch, progress_batch)
+                    self.val_loss_list[i] = val_loss
+            except Exception as e:
+                logger.error(str(e))
 
         coroutine_list = []
         for i in range(self.resources.worker.num_worker):
-            node = self.worker_placement[i]
-            local_file = os.path.join(self.worker_mount_dirs[i], progress_fn)
-            cmd = f'ssh {node} "cat {local_file}"'
-
-            coroutine_list.append(run(cmd, i))
+            coroutine_list.append(run(i))
         
         await asyncio.gather(*coroutine_list)
 
@@ -335,35 +322,26 @@ class DLJob():
     async def _read_training_speed(self):
         """Get the job training speed from each worker
         """
-        speed_fn = 'speed.txt'
         self.speed_list = [0 for i in range(self.resources.worker.num_worker)]
 
-        async def run(cmd, i):
-                try:
-                    output = subprocess.check_output(cmd, shell=True)
-
-                    # the other side is opening and writing the file, try again
-                    counter = 0
-                    while output == '' or output is None:
-                        output = subprocess.check_output(cmd, shell=True)
-                        await asyncio.sleep(0.001 * (10 ** counter))
-                        counter = counter + 1
-                        if counter > 2:
-                            logger.error('read training speed timeout.')
-                            return
-                    stb_speed = float(output.decode("utf-8").replace('\n', '').split(' ')[1])
-                    self.speed_list[i] = stb_speed
-                except Exception as e:
-                    logger.error(str(e))
+        async def run(i):
+            try:
+                counter = 0
+                stb_speed = redis_connection.get(f"{self.name}-stb_speed")
+                while stb_speed is None:
+                    await asyncio.sleep(0.001 * (10 ** counter))
+                    stb_speed = redis_connection.get(f"{self.name}-stb_speed")
+                    counter = counter + 1
+                    if counter > 2:
+                        logger.error("read training speed timeout.")
+                        return
+                self.speed_list[i] = float(str(stb_speed.decode("utf-8")))
+            except Exception as e:
+                logger.error(str(e))
 
         coroutine_list = []
         for i in range(self.resources.worker.num_worker):
-            node = self.worker_placement[i]
-            local_file = os.path.join(self.worker_mount_dirs[i], speed_fn)
-
-            cmd = f'ssh {node} "cat {local_file}"'
-
-            coroutine_list.append(run(cmd, i))
+            coroutine_list.append(run(i))
         
         await asyncio.gather(*coroutine_list)
 
@@ -494,16 +472,3 @@ class DLJob():
 
             # delete job working dir
             shutil.rmtree(self.dir)
-
-    def get_total_required_resources(self):
-        """Returns: dict containing the required amount of resources to host this job."""
-        # if we use the dist_strategy ps we also need to count the resources required by the parameter servers
-        required_cpu = self.resources.worker.num_worker * self.resources.worker.worker_cpu + \
-                       self.resources.ps.num_ps * self.resources.ps.ps_cpu
-        required_mem = self.resources.worker.num_worker * self.resources.worker.worker_mem + \
-                       self.resources.ps.num_ps * self.resources.ps.ps_mem
-        required_bw = self.resources.worker.num_worker * self.resources.worker.worker_bw + \
-                      self.resources.ps.num_ps * self.resources.ps.ps_bw
-        required_gpu = self.resources.worker.num_worker * self.resources.worker.worker_gpu
-
-        return {'cpu': required_cpu, 'mem': required_mem, 'bw': required_bw, 'gpu': required_gpu}

@@ -9,6 +9,7 @@ import redis
 logging.basicConfig(level=logging.INFO,	format='%(asctime)s.%(msecs)03d %(module)s %(levelname)s: %(message)s', datefmt="%Y-%m-%d %H:%M:%S")
 ROLE = os.getenv("ROLE")
 WORK_DIR = os.getenv("WORK_DIR")
+JOB_NAME = os.getenv("JOB_NAME")
 
 # read the log file and monitor the training progress
 # give log file name
@@ -22,8 +23,8 @@ def update_speed(logfile):
 
     redis_connection = redis.Redis()
 
-    redis_connection.set("avg_speed", 0)
-    redis_connection.set("stb_speed", 0)
+    redis_connection.set("{}-avg_speed".format(JOB_NAME), 0)
+    redis_connection.set("{}-stb_speed".format(JOB_NAME), 0)
 
     logging.info('starting speed monitor to track average training speed ...')
 
@@ -75,8 +76,8 @@ def update_speed(logfile):
 
         logging.info('Stable Training Speed: ' + str(stb_speed))
 
-        redis_connection.set("avg_speed", avg_speed)
-        redis_connection.set("stb_speed", stb_speed)
+        redis_connection.set("{}-avg_speed".format(JOB_NAME), avg_speed)
+        redis_connection.set("{}-stb_speed".format(JOB_NAME), stb_speed)
 
 
 def main():
