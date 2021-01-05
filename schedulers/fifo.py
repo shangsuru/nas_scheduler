@@ -1,6 +1,5 @@
 import config
 import queue
-from communication import hub, Payload
 from schedulers.scheduler_base import SchedulerBase
 from allocators.default_allocator import DefaultAllocator
 
@@ -9,13 +8,9 @@ from log import logger
 
 class FIFOScheduler(SchedulerBase):
     def __init__(self, cluster, timer):
-        """
-        Args:
-            timer (Timer): timer instance
-        """
-        super().__init__(cluster, timer)
+        super().__init__(cluster)
         self.allocator = DefaultAllocator(cluster)
-        self.start()
+        self.name = 'FIFO'
 
     def _schedule(self):
         fifo_queue = queue.PriorityQueue()

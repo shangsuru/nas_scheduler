@@ -8,7 +8,6 @@ from scipy.optimize import curve_fit
 import random
 
 import config
-from communication import hub, Payload
 from schedulers.scheduler_base import SchedulerBase
 from allocators.default_allocator import DefaultAllocator
 
@@ -356,11 +355,7 @@ class OptimusEstimator():
 
 class OptimusScheduler(SchedulerBase):
     def __init__(self, cluster, timer):
-        """
-        Args:
-            timer (Timer): timer instance
-        """
-        super().__init__(cluster, timer)
+        super().__init__(cluster)
         self.estimator = OptimusEstimator(cluster)
         self.allocator = DefaultAllocator(cluster)
         self.start()
