@@ -3,6 +3,7 @@ import config
 from log import logger
 import redis
 import time
+import json
 from progressor import Progressor
 
 
@@ -73,8 +74,8 @@ class Statsor():
         try:
             ps_cpu_usage = Progressor.ps_cpu_occupations
             worker_cpu_usage = Progressor.worker_cpu_occupations
-            redis_connection.set("ps_cpu_usage", ps_cpu_usage)
-            redis_connection.set("worker_cpu_usage", worker_cpu_usage)
+            redis_connection.set("ps_cpu_usage", json.dumps(ps_cpu_usage))
+            redis_connection.set("worker_cpu_usage", json.dumps(worker_cpu_usage))
         except Exception as e:
             logger.debug(f'[statsor] {e}')
 
