@@ -1,6 +1,7 @@
 import aiofiles
 import config
 from log import logger
+import redis
 import time
 from progressor import Progressor
 
@@ -11,9 +12,6 @@ class Statsor():
     """
     tic = time.time()
     end = None
-    open("exp-stats.txt", 'w').close()
-
-    stats_txt = "exp-stats.txt"
 
     @staticmethod
     async def stats(t):
@@ -51,42 +49,44 @@ class Statsor():
             logger.debug(f'average completion time (including speed measurement): {avg_completion_time:.3f} seconds, \
                 average completion slots: {avg_completion_slot}')
 
-        stats_dict = dict()
-        stats_dict["JOB_SCHEDULER"] = config.JOB_SCHEDULER
-        stats_dict["timeslot"] = t
-        stats_dict["num_submit_jobs"] = num_submit_jobs
-        stats_dict["num_completed_jobs"] = num_completed_jobs
-        stats_dict["num_uncompleted_jobs"] = num_uncompleted_jobs
-        stats_dict["cluster_cpu_util"] = cluster_cpu_util
-        stats_dict["cluster_mem_util"] = cluster_mem_util
-        stats_dict["cluster_bw_util"] = cluster_bw_util
-        stats_dict["cluster_gpu_util"] = cluster_gpu_util
-        stats_dict["tot_num_running_tasks"] = tot_num_running_tasks
+        redis_connection = redis.Redis()
+
+        redis_connection.set("JOB_SCHEDULER", config.JOB_SCHEDULER)
+        redis_connection.set("timeslot", t)
+        redis_connection.set("num_submit_jobs", num_submit_jobs)
+        redis_connection.set("num_completed_jobs", num_completed_jobs)
+        redis_connection.set("num_uncompleted_jobs", num_uncompleted_jobs)
+        redis_connection.set("cluster_cpu_util", cluster_cpu_util)
+        redis_connection.set("cluster_mem_util", cluster_mem_util)
+        redis_connection.set("cluster_bw_util", cluster_bw_util)
+        redis_connection.set("cluster_gpu_util", cluster_gpu_util)
+        redis_connection.set("tot_num_running_tasks", tot_num_running_tasks)
+        
         if Statsor.scheduler.name == "optimus_scheduler":
-            stats_dict["scaling_overhead"] = Statsor.scheduler.scaling_overhead
-            stats_dict["testing_overhead"] = Statsor.scheduler.testing_overhead
+            redis_connection.set("scaling_overhead", Statsor.scheduler.scaling_overhead)
+            redis_connection.set("testing_overhead", Statsor.scheduler.testing_overhead)
         if len(completion_time_list) > 0:
-            stats_dict["avg_completion_time"] = float('%.3f' % (avg_completion_time))
+            redis_connection.set("avg_completion_time", float('%.3f' % (avg_completion_time)))
         else:
-            stats_dict["avg_completion_time"] = -1
+            redis_connection.set("avg_completion_time", -1)
         try:
             ps_cpu_usage = Progressor.ps_cpu_occupations
             worker_cpu_usage = Progressor.worker_cpu_occupations
-            stats_dict["ps_cpu_usage"] = ps_cpu_usage
-            stats_dict["worker_cpu_usage"] = worker_cpu_usage
+            redis_connection.set("ps_cpu_usage", ps_cpu_usage)
+            redis_connection.set("worker_cpu_usage", worker_cpu_usage)
         except Exception as e:
             logger.debug(f'[statsor] {e}')
 
         toc = time.time()
         runtime = toc - Statsor.tic
-        stats_dict["runtime"] = float('%.3f' % (runtime))
+        redis_connection.set("runtime", float('%.3f' % (runtime)))
         if len(Statsor.scheduler.completed_jobs) == config.TOT_NUM_JOBS:
             logger.info(f'All jobs are completed!')
         if Statsor.end is None:
             Statsor.end = runtime
-            stats_dict["makespan"] = float('%.3f' % (Statsor.end))
+            redis_connection.set("makespan", float('%.3f' % (Statsor.end)))
         else:
-            stats_dict["makespan"] = -1
+            redis_connection.set("makespan", -1)
 
         async with aiofiles.open(Statsor.stats_txt, 'a') as f:
-            await f.write(str(stats_dict) + "\n")
+            await f.write(str(redis_connection.set() + "\n"))
