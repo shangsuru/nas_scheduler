@@ -108,8 +108,7 @@ class DLJob():
     @staticmethod
     def create_from_config_file(uid: int , workload_id: int , working_directory: str,
                         config_file: str):
-        """
-        Creates a DLJob by reading its configuration from a yaml file.
+        """Creates a DLJob by reading its configuration from a yaml file.
         Args:
             uid: integer that uniquely identifies the DL job
             workload_id: unique index for the job. Useful for identifying the
