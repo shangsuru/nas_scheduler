@@ -4,7 +4,7 @@ Train mnist, see more explanation at http://mxnet.io/tutorials/python/mnist.html
 import os
 import argparse
 import logging
-logging.basicConfig(filename="./data/training.log", filemode="w", level=logging.DEBUG)
+logging.basicConfig(filename="/data/training.log", filemode="w", level=logging.DEBUG)
 logging.getLogger().addHandler(logging.StreamHandler())
 
 from common import find_mxnet, fit
