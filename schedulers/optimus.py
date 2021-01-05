@@ -430,7 +430,7 @@ class OptimusScheduler(SchedulerBase):
 
         # first estimate speed
         test_tic = time.time()
-        self.estimator.existing_jobs = list(self.uncompleted_jobs + self.completed_jobs)
+        self.estimator.existing_jobs = list(self.uncompleted_jobs) + list(self.completed_jobs)
         self.estimator.test_speed(new_jobs)
         logger.debug(f'Finish testing speed for new jobs.')
         test_toc = time.time()
