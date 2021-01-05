@@ -2,6 +2,7 @@ import asyncio
 from types import coroutine
 import aiohttp
 import time
+from timer import Timer
 from datetime import datetime
 import os
 import threading
@@ -12,6 +13,7 @@ import shutil
 from munch import munchify
 
 import utils
+import yaml
 
 from k8s.api import KubeAPI
 from k8s.job import Job
@@ -102,6 +104,25 @@ class DLJob():
 
     def __repr__(self):
         return f'DLJob(name={self.name})'
+
+    @staticmethod
+    def create_from_config_file(uid: int , workload_id: int , working_directory: str,
+                        config_file: str):
+        """
+        Creates a DLJob by reading its configuration from a yaml file.
+        Args:
+            uid: integer that uniquely identifies the DL job
+            workload_id: unique index for the job. Useful for identifying the
+                job characteristic in the future.
+            working_directory: working directory of the job
+            config_file: yaml file containing the job configuration
+        """
+        with open(config_file, "r") as f:
+            job_config = yaml.full_load(f)
+        job = DLJob(uid, workload_id, working_directory, job_config)
+        job.arrival_slot = Timer.get_clock()
+        job.arrival_time = time.time()
+        return job
 
     def set_ps_placement(self, ps_placement):
         """Setting the placement of parameter servers.
@@ -379,9 +400,10 @@ class DLJob():
             for metric_key in metric_keys:
                 url = f'http://{heapster_cluster_ip}/api/v1/model/namespaces/default/pods/{pod}/metrics/{metric_key}'
                 try:
-                    output = await aiohttp.request('GET', url).json()
-                    # get latest value, maybe empty since heapster update metrics per minute
-                    metric_value = int(output['metrics'][-1]['value'])
+                    async with aiohttp.ClientSession as session:
+                        output = await session.get(url).json()
+                        # get latest value, maybe empty since heapster update metrics per minute
+                        metric_value = int(output['metrics'][-1]['value'])
                 except:
                     # print "ERROR when requesting pod metrics!"
                     metric_value = 0
@@ -424,7 +446,7 @@ class DLJob():
         for job in self.running_tasks:
             k8s_api.submit_job(job.k8s_job_obj)
 
-    def delete(self, del_all=False):
+    async def delete(self, del_all=False):
         """Delete the job.
         
         Args:
@@ -432,37 +454,36 @@ class DLJob():
         """
 
         # shutdown job in k8s
-        thread_list = []
-        for task in self.running_tasks:
-            # TODO: self.name for k8s task name? maybe wrong?
-            thread = threading.Thread(target=(lambda name=task.uname: k8s_api.delete_job(name)), args=())
-            thread.start()
-            thread_list.append(thread)
+        executor = concurrent.futures.ThreadPoolExecutor()
+        loop = asyncio.get_event_loop()
+        # TODO: self.name for k8s task name? maybe wrong?
+        blocking_tasks = [
+            loop.run_in_executor(executor, k8s_api.delete_job, task.uname)
+            for task in self.running_tasks
+        ]
 
-        for thread in thread_list:
-            thread.join()
+        await asyncio.wait(blocking_tasks)
 
+        blocking_tasks = []
         # remove mounted dirs on hosts
         if self.worker_mount_dirs and del_all:
-            thread_list = []
             for i in range(self.resources.worker.num_worker):
                 node = self.worker_placement[i]
                 worker_mount_dir = self.worker_mount_dirs[i]
                 cmd = f'timeout 10 ssh {node} "rm -r {worker_mount_dir}"'
-                thread = threading.Thread(target=(lambda cmd=cmd: os.system(cmd)), args=())
-                thread.start()
-                thread_list.append(thread)
+                blocking_tasks.append(
+                    loop.run_in_executor(executor, os.system, cmd)
+                )
 
             for i in range(self.resources.ps.num_ps):
                 node = self.ps_placement[i]
                 ps_mount_dir = self.ps_mount_dirs[i]
                 cmd = f'timeout 10 ssh {node} "rm -r {ps_mount_dir}"'
-                thread = threading.Thread(target=(lambda cmd=cmd: os.system(cmd)), args=())
-                thread.start()
-                thread_list.append(thread)
+                blocking_tasks.append(
+                    loop.run_in_executor(executor, os.system, cmd)
+                )
 
-            for thread in thread_list:
-                thread.join()
+            await asyncio.wait(blocking_tasks)
 
             # delete job working dir
             shutil.rmtree(self.dir)
