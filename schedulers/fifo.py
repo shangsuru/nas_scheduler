@@ -10,7 +10,7 @@ class FIFOScheduler(SchedulerBase):
     def __init__(self, cluster):
         super().__init__(cluster)
         self.allocator = DefaultAllocator(cluster)
-        self.name = 'FIFO'
+        self.name = "fifo_scheduler"
 
     def _schedule(self):
         fifo_queue = queue.PriorityQueue()

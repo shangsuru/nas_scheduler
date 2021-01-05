@@ -354,11 +354,11 @@ class OptimusEstimator():
 
 
 class OptimusScheduler(SchedulerBase):
-    def __init__(self, cluster, timer):
+    def __init__(self, cluster):
         super().__init__(cluster)
         self.estimator = OptimusEstimator(cluster)
         self.allocator = DefaultAllocator(cluster)
-        self.start()
+        self.name = "optimus_scheduler"
 
     def __del__(self):
         super().__del__()
