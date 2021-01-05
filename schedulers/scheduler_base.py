@@ -1,4 +1,5 @@
 import abc
+import asyncio
 import time
 import threading
 from queue import PriorityQueue
@@ -55,7 +56,7 @@ class SchedulerBase(metaclass=abc.ABCMeta):
         scaling_tic = time.time()
         self.running_jobs = set()
         # send message to progress to update job progress
-        thread_list = []
+        coroutine_list = []
         for job in self.uncompleted_jobs:
             if job.uid not in ps_placements:
                 continue
@@ -65,16 +66,13 @@ class SchedulerBase(metaclass=abc.ABCMeta):
                 # this may cause many ssh connections on a server and an error "ssh_exchange_identification: Connection closed by remote host"
                 # to avoid this error, run 'echo "MaxStartups 100:10:200" | sudo tee -a /etc/ssh/sshd_config && sudo service ssh restart' on the server
                 self.running_jobs.add(job)
-                thread = threading.Thread(target=self.__run, args=(job, ps_placement, worker_placement,))
-                thread.start()
-                thread_list.append(thread)
+                coroutine_list.append(asyncio.create_task(self.__run(job, ps_placement, worker_placement)))
                 job.status = 'running'
             else:
                 job.status = 'pending'
                 Progressor.remove_from_running_jobs(job)
 
-        for thread in thread_list:
-            thread.join()
+        asyncio.gather(*coroutine_list)
         scaling_toc = time.time()
         self.scaling_overhead += (scaling_toc - scaling_tic)
         logger.debug(f'job starting time: {scaling_toc - scaling_tic:.3f} seconds.')
@@ -86,7 +84,7 @@ class SchedulerBase(metaclass=abc.ABCMeta):
 
 
 
-    def __run(self, job, ps_placement, worker_placement):
+    async def __run(self, job, ps_placement, worker_placement):
         """Run a given job with given ps and worker placements
 
         Args:
