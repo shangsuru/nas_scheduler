@@ -85,26 +85,25 @@ async def listen(scheduler: SchedulerBase):
 
 
 async def send(redis_connection, response, args: list = None):
-    """
-    Sends given response with given args from daemon back to client
+    """Sends given response with given args from daemon back to client
 
     Args:
-    redis_connection: Redis connection instance which the redis server
+    redis_connection (aioredis.ConnectionsPool): Redis connection instance which the redis server
         can be interacted with
-    response: Type of the response to client command
-    args: Arguments associated with response
+    response (str): Type of the response to client command
+    args (list): Arguments associated with response, if None no arguments
+            are given to the command
     """
     asyncio.create_task(redis_connection.publish("daemon", json.dumps({'response': response, 'args': args})))
 
 
 def _get_command_args(message: str): # -> tuple[str, str]
-    """
-    Parses received message from client into command and arguments part
+    """Parses received message from client into command and arguments part
     Args:
-        messsage: Message received from client
+        messsage (str): Message received from client
     Returns:
-        payload['command']: Command part of the client message
-        payload['args']: Arguments part of the client message
+        payload['command'] (str): Command part of the client message
+        payload['args'] (str): Arguments part of the client message
     """
     payload = json.loads(message)
     return payload['command'], payload['args']
