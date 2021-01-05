@@ -1,6 +1,5 @@
 import config
 import queue
-from communication import hub, Payload
 from schedulers.scheduler_base import SchedulerBase
 from allocators.default_allocator import DefaultAllocator
 
@@ -9,11 +8,7 @@ from log import logger
 
 class DRFScheduler(SchedulerBase):
     def __init__(self, cluster, timer):
-        """
-        Args:
-            timer (Timer): timer instance
-        """
-        super().__init__(cluster, timer)
+        super().__init__cluster()
         self.allocator = DefaultAllocator(cluster)
         self.start()
 
