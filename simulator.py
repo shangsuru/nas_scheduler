@@ -11,14 +11,13 @@ from log import logger
 from dl_job import DLJob
 from payload import Payload
 import redis
-import jsonpickle
+import json
 
 
 def prepare_job_repo():
     job_repo = list()
     for filename in Path('job_repo').glob('*.yaml'):
-        with open(filename, 'r') as f:
-            job_repo.append(yaml.full_load(f))
+        job_repo.append(str(filename))
 
     return job_repo
 
@@ -42,8 +41,8 @@ class Simulator():
             if msg['channel'] == b'timer':
                 self.submit_job(int(msg['data']))
             else: 
-                payload = jsonpickle.decode(msg['data'])
-                self.submit_job(int(payload.args[0])) 
+                payload = json.loads(msg["data"])
+                self.submit_job(int(payload["args"][0])) 
 
 
     def generate_jobs(self):
@@ -55,16 +54,14 @@ class Simulator():
         for i in range(config.TOT_NUM_JOBS):
             # uniform randomly choose one
             index = random.randint(0, len(jobrepo) - 1)
-            job_conf = jobrepo[index]
-            job = DLJob(i, index, os.getcwd(), job_conf)
+            job_config_file = jobrepo[index]
 
             # randomize job arrival time
-            t = random.randint(1, config.T)  # clock start from 1
-            job.arrival_slot = t
-            if job.arrival_slot in self.job_dict:
-                self.job_dict[job.arrival_slot].append(job)
+            timeslot = random.randint(1, config.T)  # clock start from 1
+            if timeslot in self.job_dict:
+                self.job_dict[timeslot].append(job_config_file)
             else:
-                self.job_dict[job.arrival_slot] = [job]
+                self.job_dict[timeslot] = [job_config_file]
 
         toc = time.time()
         logger.debug(f'has generated {config.TOT_NUM_JOBS} jobs')
@@ -74,12 +71,8 @@ class Simulator():
         # put jobs into queue
         logger.info(f'-------*********-------- starting timeslot {t} --------*********-------')
         if t in self.job_dict:
-            jobs_to_submit = []
-            for job in self.job_dict[t]:
-                job.arrival_time = time.time()
-                jobs_to_submit.append(job) # enqueue jobs at the beginning of each time slot
-                self.counter += 1
-            self.send("submit", args=jobs_to_submit)
+            self.counter += len(self.job_dict[t])
+            self.send("submit", args=self.job_dict[t])
 
         # notify the scheduler that all jobs in this timeslot have been submitted
         self.send("init")
@@ -91,7 +84,7 @@ class Simulator():
 
     def send(self, command, args=None):
         self.redis_connection.publish(
-            "client", jsonpickle.encode(Payload(command, args))
+            "client", json.dumps({'command': command, 'args': args})
         )
 
     def process(self, msg):
@@ -100,7 +93,7 @@ class Simulator():
 
 
 def main():
-    sim = Simulator()
+    Simulator()
 
 
 if __name__ == '__main__':

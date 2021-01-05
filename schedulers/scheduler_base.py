@@ -33,15 +33,11 @@ class SchedulerBase(metaclass=abc.ABCMeta):
         self.queueing_jobs.put((job.arrival_time, job))
         self.uncompleted_jobs.add(job)
 
-    def stop(self):
+    async def stop(self):
         logger.debug(f'delete unfinished jobs...')
         thread_list = []
         for job in self.uncompleted_jobs:
-            del_thread = threading.Thread(target=(lambda job=job: job.delete(True)), args=())
-            del_thread.start()
-            thread_list.append(del_thread)
-        for del_thread in thread_list:
-            del_thread.join()
+            await job.delete(True)
 
     @abc.abstractmethod
     def _schedule(self):
@@ -106,15 +102,20 @@ class SchedulerBase(metaclass=abc.ABCMeta):
         """Delete all the jobs in the current timestamp of scheduler, including running and completed jobs.
         """
         delete_tic = time.time()
+        stopping_jobs = []
         # clear existing jobs for next time slot
         for job in self.running_jobs:
-            job.delete(True)
+            stopping_jobs.append(
+                asyncio.create_task(job.delete(True)))
             self.allocator.free_job_resources(job)
 
         for job in self.cur_ts_completed_jobs:
             self.uncompleted_jobs.discard(job)
             self.running_jobs.discard(job)
             self.completed_jobs.add(job)
+
+        if len(stopping_jobs) > 0:
+            await asyncio.wait(stopping_jobs)
 
         self.cur_ts_completed_jobs = []
 

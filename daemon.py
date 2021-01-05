@@ -1,17 +1,18 @@
-import jsonpickle
-from schedulers.scheduler_base import SchedulerBase
 import config
 from log import logger
 from cluster import Cluster
 from schedulers.optimus import OptimusScheduler
 from schedulers.fifo import FIFOScheduler
 from schedulers.drf import DRFScheduler
+from schedulers.scheduler_base import SchedulerBase
 from k8s.api import KubeAPI
 from timer import Timer
-from payload import Payload
 from statsor import Statsor
 import asyncio
 import aioredis
+import json
+import os
+from dl_job import DLJob
 
 
 k8s_api = KubeAPI()
@@ -41,7 +42,7 @@ async def main():
 
 
 async def setup_redis_connection():
-    '''Creates a a connection to the redis database and subscribes to
+    """Creates a a connection to the redis database and subscribes to
     the client channel.
         
     Returns:
@@ -49,7 +50,7 @@ async def setup_redis_connection():
             can be used to communicate with redis asynchronously
         channel (aioredis.Channel): the channel is the object from which all
             messages sent by the client are received
-    '''
+    """
     redis_connection = await aioredis.create_redis_pool("redis://localhost")
     channel = (await redis_connection.psubscribe("client"))[0]
     return redis_connection, channel
@@ -73,8 +74,8 @@ async def listen(scheduler: SchedulerBase):
             if command == 'init':
                 asyncio.create_task(scheduler.init_schedule())
             elif command == 'submit':
-                for job in args:
-                    scheduler.submit_job(job)
+                for i, job_config_file in enumerate(args):
+                    job = DLJob.create_from_config_file(i, 0, os.getcwd(), job_config_file)
             elif command == 'delete':
                 pass # TODO
             elif command == 'list':
@@ -89,13 +90,27 @@ async def listen(scheduler: SchedulerBase):
 async def send(redis_connection, response, args: list = None):
     """
     Sends given response with given args from daemon back to client
+
+    Args:
+    redis_connection: Redis connection instance which the redis server
+        can be interacted with
+    response: Type of the response to client command
+    args: Arguments associated with response
     """
-    asyncio.create_task(redis_connection.publish("daemon", jsonpickle.encode(Payload(response, args))))
+    asyncio.create_task(redis_connection.publish("daemon", json.dumps({'response': response, 'args': args})))
 
 
-def _get_command_args(message):
-    payload = jsonpickle.decode(message)
-    return payload.command, payload.args
+def _get_command_args(message: str): # -> tuple[str, str]
+    """
+    Parses received message from client into command and arguments part
+    Args:
+        messsage: Message received from client
+    Returns:
+        payload['command']: Command part of the client message
+        payload['args']: Arguments part of the client message
+    """
+    payload = json.loads(message)
+    return payload['command'], payload['args']
 
 
 if __name__ == '__main__':
