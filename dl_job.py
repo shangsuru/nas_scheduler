@@ -11,6 +11,7 @@ import subprocess
 import ast
 import shutil
 from munch import munchify
+from uuid import uuid1
 
 import utils
 import yaml
@@ -118,7 +119,7 @@ class DLJob():
         """
         with open(config_file, "r") as f:
             job_config = yaml.full_load(f)
-        job = DLJob(uid, workload_id, working_directory, job_config)
+        job = DLJob(uuid1().int % 99999, job_config['metadata']['tag'], working_directory, job_config)
         job.arrival_slot = Timer.get_clock()
         job.arrival_time = time.time()
         return job
@@ -344,7 +345,7 @@ class DLJob():
                             logger.error('read training speed timeout.')
                             return
                     stb_speed = float(output.decode("utf-8").replace('\n', '').split(' ')[1])
-                    self.speed_list[i] = float('%.3f' % stb_speed)
+                    self.speed_list[i] = float(str(stb_speed.decode("utf-8")))
                 except Exception as e:
                     logger.error(str(e))
 
