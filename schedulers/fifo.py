@@ -7,7 +7,7 @@ from log import logger
 
 
 class FIFOScheduler(SchedulerBase):
-    def __init__(self, cluster, timer):
+    def __init__(self, cluster):
         super().__init__(cluster)
         self.allocator = DefaultAllocator(cluster)
         self.name = 'FIFO'

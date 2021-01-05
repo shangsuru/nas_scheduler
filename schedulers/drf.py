@@ -7,7 +7,7 @@ from log import logger
 
 
 class DRFScheduler(SchedulerBase):
-    def __init__(self, cluster, timer):
+    def __init__(self, cluster):
         super().__init__cluster()
         self.allocator = DefaultAllocator(cluster)
         self.start()

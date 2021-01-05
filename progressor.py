@@ -18,7 +18,7 @@ class Progressor():
         Progressor.running_jobs.discard(job)
 
     @staticmethod
-    async def _update_progress():
+    async def update_progress():
         # update job progress and training speed periodically
         freq = 8
         counter = 0
@@ -49,10 +49,14 @@ class Progressor():
             for job in Progressor.running_jobs.copy():
                 try:
                     logger.debug(f'Trying to read progress/speed stats #{counter}')
-                    (progress_list, val_loss_list) = job.get_training_progress_stats()
-                    speed_list = job.get_training_speed()
-                    (ps_metrics, worker_metrics) = job.get_metrics()
+                    get_progress = asyncio.create_task(job.get_training_progress_stats())
+                    get_speed = asyncio.create_task(job.get_training_speed())
+                    get_metrics = asyncio.create_task(job.get_metrics())
 
+                    (progress_list, val_loss_list) = await get_progress
+                    speed_list = await get_speed
+                    (ps_metrics, worker_metrics) = await get_metrics
+                    
                     if sum(speed_list) == 0 or not progress_list:
                         continue
 

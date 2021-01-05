@@ -1,15 +1,16 @@
+import asyncio
+from types import coroutine
+import aiohttp
 import time
 from datetime import datetime
 import os
-import sys
 import threading
-import subprocess
 import requests
+import subprocess
 import ast
 import shutil
 from munch import munchify
 
-import config
 import utils
 
 from k8s.api import KubeAPI
@@ -234,7 +235,7 @@ class DLJob():
 
         return jobs
 
-    def _read_data(self):
+    async def _read_data(self):
         """Read training data from localhost, otherwise from HDFS.
         A thread is created for each worker and tries to load the data.
         """
@@ -242,7 +243,7 @@ class DLJob():
             return
         if self.data.hdfs_data is None or self.data.hdfs_data == '':
             raise ValueError('data is not mounted from localhost and hdfs_data is not specified')
-        thread_list = []
+        proc_list = []
         for i in range(self.resources.worker.num_worker):
             node = self.worker_placement[i]
 
@@ -252,34 +253,25 @@ class DLJob():
                 local_file = self.worker_mount_dirs[i] + fn
                 # force copy even exist: some file may be broken due to interruption
                 cmd = f'ssh {node} "/usr/local/hadoop/bin/hadoop fs -copyToLocal -f {data} {local_file}"'
-                thread_train = threading.Thread(target=(lambda cmd=cmd: os.system(cmd)), args=())
-                thread_train.start()
-                thread_list.append(thread_train)
+                proc_list.append(asyncio.create_task(asyncio.create_subprocess_shell(cmd)))
 
-        for thread in thread_list:
-            thread.join()
+        await asyncio.gather(*proc_list)
 
-    def _read_progress_stats(self):
+    async def _read_progress_stats(self):
         """Get the job progress from each worker.
         """
-        progress_fn = 'progress.txt'
 
         # create a new one each time, since the number of workers will change, hence the size of progress list
         self.progress_list = [(0, 0) for i in range(self.resources.worker.num_worker)]
         self.val_loss_list = [(0, 0) for i in range(self.resources.worker.num_worker)]
-        thread_list = []
-        for i in range(self.resources.worker.num_worker):
-            node = self.worker_placement[i]
-            local_file = os.path.join(self.worker_mount_dirs[i], progress_fn)
-            cmd = f'ssh {node} "cat {local_file}"'
 
-            def run(self, cmd, i):
+        async def run(cmd, i):
                 try:
                     output = subprocess.check_output(cmd, shell=True).decode('utf-8')
                     counter = 0
                     while output == '' or output is None:
                         output = subprocess.check_output(cmd, shell=True)
-                        time.sleep(0.001 * (10 ** counter))
+                        await asyncio.sleep(0.001 * (10 ** counter))
                         counter = counter + 1
                         if counter > 2:
                             break
@@ -298,29 +290,27 @@ class DLJob():
                 except Exception as e:
                     logger.error(str(e))
 
-            thread = threading.Thread(target=run, args=(self, cmd, i))
-            thread.start()
-            thread_list.append(thread)
-        for thread in thread_list:
-            thread.join()
+        coroutine_list = []
+        for i in range(self.resources.worker.num_worker):
+            node = self.worker_placement[i]
+            local_file = os.path.join(self.worker_mount_dirs[i], progress_fn)
+            cmd = f'ssh {node} "cat {local_file}"'
 
-    def get_training_progress_stats(self):
-        self._read_progress_stats()
+            coroutine_list.append(run(cmd, i))
+        
+        await asyncio.gather(*coroutine_list)
+
+    async def get_training_progress_stats(self):
+        await self._read_progress_stats()
         return (list(self.progress_list), list(self.val_loss_list))
 
-    def _read_training_speed(self):
+    async def _read_training_speed(self):
         """Get the job training speed from each worker
         """
         speed_fn = 'speed.txt'
         self.speed_list = [0 for i in range(self.resources.worker.num_worker)]
-        thread_list = []
-        for i in range(self.resources.worker.num_worker):
-            node = self.worker_placement[i]
-            local_file = os.path.join(self.worker_mount_dirs[i], speed_fn)
 
-            cmd = f'ssh {node} "cat {local_file}"'
-
-            def run(self, cmd, i):
+        async def run(cmd, i):
                 try:
                     output = subprocess.check_output(cmd, shell=True)
 
@@ -328,7 +318,7 @@ class DLJob():
                     counter = 0
                     while output == '' or output is None:
                         output = subprocess.check_output(cmd, shell=True)
-                        time.sleep(0.001 * (10 ** counter))
+                        await asyncio.sleep(0.001 * (10 ** counter))
                         counter = counter + 1
                         if counter > 2:
                             logger.error('read training speed timeout.')
@@ -338,14 +328,19 @@ class DLJob():
                 except Exception as e:
                     logger.error(str(e))
 
-            thread = threading.Thread(target=run, args=(self, cmd, i))
-            thread.start()
-            thread_list.append(thread)
-        for thread in thread_list:
-            thread.join()
+        coroutine_list = []
+        for i in range(self.resources.worker.num_worker):
+            node = self.worker_placement[i]
+            local_file = os.path.join(self.worker_mount_dirs[i], speed_fn)
 
-    def get_training_speed(self):
-        self._read_training_speed()
+            cmd = f'ssh {node} "cat {local_file}"'
+
+            coroutine_list.append(run(cmd, i))
+        
+        await asyncio.gather(*coroutine_list)
+
+    async def get_training_speed(self):
+        await self._read_training_speed()
         return list(self.speed_list)
 
     def __get_pods_names(self):
@@ -364,7 +359,7 @@ class DLJob():
             elif 'worker' in pod_name:
                 self.worker_pods.append(pod_name)
 
-    def _read_metrics(self):
+    async def _read_metrics(self):
         """Get the metrics of the pods for the job
         """
         self.__get_pods_names()
@@ -384,7 +379,7 @@ class DLJob():
             for metric_key in metric_keys:
                 url = f'http://{heapster_cluster_ip}/api/v1/model/namespaces/default/pods/{pod}/metrics/{metric_key}'
                 try:
-                    output = requests.get(url, verify=False).json()
+                    output = await aiohttp.request('GET', url).json()
                     # get latest value, maybe empty since heapster update metrics per minute
                     metric_value = int(output['metrics'][-1]['value'])
                 except:
@@ -396,13 +391,13 @@ class DLJob():
             else:
                 self.worker_metrics.append(pod_metrics)
 
-    def get_metrics(self):
+    async def get_metrics(self):
         """Get job metrics
         """
-        self._read_metrics()
+        await self._read_metrics()
         return list(self.ps_metrics), list(self.worker_metrics)
 
-    def start(self):
+    async def start(self):
         """Start the job in k8s, with these steps:
             - Creating job directory
             - Mounting data on ps and workers
@@ -423,7 +418,7 @@ class DLJob():
         self.running_tasks = self._create_jobs()
 
         # prepare data
-        self._read_data()
+        await self._read_data()
 
         # start pods in k8s. equivalent to microk8s kubectl create -f jobs.yaml
         for job in self.running_tasks:
