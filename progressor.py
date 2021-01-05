@@ -40,8 +40,6 @@ class Progressor():
             # if no jobs in this timeslot, skip it
             for i in range(config.TS_INTERVAL // freq):
                 await asyncio.sleep(1)
-                if Progressor.should_stop:
-                    return
             counter += 1
             cpu_usage_dict = dict()  # job, cpu_usage in this interval
             num_tasks = 0
