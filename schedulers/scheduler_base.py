@@ -75,7 +75,8 @@ class SchedulerBase(metaclass=abc.ABCMeta):
 
         # signal scheduling completion to progressor
         finished_jobs = await Progressor.update_progress()
-        (self.cur_ts_completed_jobs.add(finished_job) for finished_job in finished_jobs)
+        for finished_job in finished_jobs:
+            self.cur_ts_completed_jobs.append(finished_job)
         await self._delete()
 
 
