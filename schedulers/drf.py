@@ -10,7 +10,7 @@ class DRFScheduler(SchedulerBase):
     def __init__(self, cluster):
         super().__init__cluster()
         self.allocator = DefaultAllocator(cluster)
-        self.start()
+        self.name = "drf_scheduler"
 
     def _schedule(self):
         drf_queue = queue.PriorityQueue()
