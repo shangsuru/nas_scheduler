@@ -11,7 +11,7 @@ from log import logger
 from dl_job import DLJob
 from payload import Payload
 import redis
-import pickle
+import jsonpickle
 
 
 def prepare_job_repo():
@@ -25,9 +25,9 @@ def prepare_job_repo():
 
 class Simulator():
     def __init__(self):
-        self.r = redis.Redis()
-        self.p = self.r.pubsub()
-        self.p.psubscribe(['daemon', 'timer'])
+        self.redis_connection = redis.Redis()
+        self.channel = self.redis_connection.pubsub()
+        self.channel.psubscribe(['daemon', 'timer'])
         self.job_dict = dict()
         self.counter = 0
         self.generate_jobs()
@@ -36,13 +36,13 @@ class Simulator():
         self.send("reset")
         logger.debug('Simulator sent reset signal')
         # wait for ack
-        for msg in self.p.listen():
+        for msg in self.channel.listen():
             if msg['pattern'] is None:  # TODO
                 continue
             if msg['channel'] == b'timer':
                 self.submit_job(int(msg['data']))
             else: 
-                payload = pickle.loads(msg['data'])
+                payload = jsonpickle.decode(msg['data'])
                 self.submit_job(int(payload.args[0])) 
 
 
@@ -90,7 +90,9 @@ class Simulator():
 
 
     def send(self, command, args=None):
-        self.r.publish('client', pickle.dumps(Payload(command, args)))
+        self.redis_connection.publish(
+            "client", jsonpickle.encode(Payload(command, args))
+        )
 
     def process(self, msg):
         if msg.type == 'reset' or msg.type == 'update':

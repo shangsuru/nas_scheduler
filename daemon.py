@@ -1,4 +1,4 @@
-import pickle
+import jsonpickle
 from schedulers.scheduler_base import SchedulerBase
 import config
 from log import logger
@@ -40,42 +40,63 @@ async def main():
     await listen(scheduler)
 
 
+async def setup_redis_connection():
+    '''Creates a a connection to the redis database and subscribes to
+    the client channel.
+        
+    Returns:
+        redis_connection (aioredis.ConnectionsPool): A coroutine instance that
+            can be used to communicate with redis asynchronously
+        channel (aioredis.Channel): the channel is the object from which all
+            messages sent by the client are received
+    '''
+    redis_connection = await aioredis.create_redis_pool("redis://localhost")
+    channel = (await redis_connection.psubscribe("client"))[0]
+    return redis_connection, channel
+
+
 async def listen(scheduler: SchedulerBase):
-    """
-    Main loop of the daemon waiting for client input
+    """Main loop of the daemon waiting for client input
+    Args:
+        scheduler (SchedulerBase): Scheduler instance managing and scheduling
+            jobs submitted by client
     """
 
-    # setup redis connection
-    r = await aioredis.create_redis_pool('redis://localhost')
-    p, = await r.psubscribe('client')
+    redis_connection, channel = await setup_redis_connection()
 
     # listen for messages
-    async for sender, message in p.iter():
-        payload = pickle.loads(message)
+    async for sender, message in channel.iter():
+        command, args = _get_command_args(message)
 
         # execute commands from client
         if sender == b'client':
-            if payload.command == 'init':
-                await scheduler.init_schedule()
-            elif payload.command == 'submit':
-                for job in payload.args:
+            if command == 'init':
+                asyncio.create_task(scheduler.init_schedule())
+            elif command == 'submit':
+                for job in args:
                     scheduler.submit_job(job)
-            elif payload.command == 'delete':
+            elif command == 'delete':
                 pass # TODO
-            elif payload.command == 'list':
+            elif command == 'list':
                 pass # TODO
-            elif payload.command == 'reset':
+            elif command == 'reset':
                 Timer.reset_clock()
-                await send(r, 'reset-ack', [1])
-            elif payload.command == 'time':
+                await send(redis_connection, 'reset-ack', [1])
+            elif command == 'time':
                 pass # TODO
 
 
-async def send(r, response, args: list = None):
+async def send(redis_connection, response, args: list = None):
     """
     Sends given response with given args from daemon back to client
     """
-    await r.publish('daemon', pickle.dumps(Payload(response, args)))
+    asyncio.create_task(redis_connection.publish("daemon", jsonpickle.encode(Payload(response, args))))
+
+
+def _get_command_args(message):
+    payload = jsonpickle.decode(message)
+    return payload.command, payload.args
+
 
 if __name__ == '__main__':
     asyncio.run(main())
