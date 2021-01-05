@@ -2,26 +2,23 @@ import os
 import logging
 import time
 import sys
+import redis
 
 
 logging.basicConfig(level=logging.INFO,	format='%(asctime)s.%(msecs)03d %(module)s %(levelname)s: %(message)s', datefmt="%Y-%m-%d %H:%M:%S")
 ROLE = os.getenv("ROLE")
 WORK_DIR = os.getenv("WORK_DIR")
 
-# read the log file and monitor the training progress
-# give log file name
-# give record file name
-# run the function in a separate thread
+
 def update_progress(logfile, recordfile):
     filesize = 0
     line_number = 0
 
-    # logfile = 'training.log'
-    # recordfile = 'progress.txt'
-    # epoch batch
+    redis_connection = redis.Redis()
+    keys = ["progress", "train_acc", "train-loss", "val-acc", "val-loss", "time-cost"]
+    for key in keys:
+        redis_connection.set(key, 0)
 
-    with open(recordfile, 'w') as fh:
-        fh.write('0 0 0 0 0 0 0\n')
     logging.info('starting progress monitor to track training progress ...')
 
     # Epoch[0] Time cost=50.885
@@ -87,29 +84,25 @@ def update_progress(logfile, recordfile):
                         time_cost.append((epoch, float(line[(line.find('=')+1):])))
 
         if len(time_cost) != 0:
-            stat_dict['progress'] = (epoch, batch)
-            stat_dict['train-acc'] = train_acc
-            stat_dict['train-loss'] = train_loss
-            stat_dict['val-acc'] = val_acc
-            stat_dict['val-loss'] = val_loss
-            stat_dict['time-cost'] = sum(x[1] for x in time_cost)/len(time_cost)
+            redis_connection.set("progress_epoch", epoch)
+            redis_connection.set("progress_batch", batch)
+            redis_connection.set("train-acc", train_acc)
+            redis_connection.set("train-loss", train_loss)
+            redis_connection.set("val-acc", val_acc)
+            redis_connection.set("val-loss", val_loss)
+            redis_connection.set("time-cost", sum(x[1] for x in time_cost) / len/(time_cost))
 
             logging.info('Progress: Epoch: ' + str(epoch) + ', Batch: ' + str(batch) + \
                      ', Train-accuracy: ' + str(train_acc) + ', Train-loss: ' + str(train_loss) + \
                      ', Validation-accuracy: ' + str(val_acc) + ', Validation-loss: ' + str(val_loss) + \
                      ', Time-cost: ' + str(time_cost))
 
-            with open(recordfile, 'w') as fh:
-                fh.write(str(stat_dict) + '\n')
-                fh.flush()
-
 
 def main():
     logfile = WORK_DIR + 'training.log'
     logfile = '/data/training.log'
-    recordfile =  WORK_DIR + 'progress.txt'
     if ROLE == 'worker':
-        update_progress(logfile, recordfile)
+        update_progress(logfile)
 
 
 if __name__ == '__main__':

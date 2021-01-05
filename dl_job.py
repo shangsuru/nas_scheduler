@@ -1,14 +1,12 @@
 import asyncio
-from types import coroutine
 import aiohttp
 import time
 from timer import Timer
 from datetime import datetime
 import os
-import threading
-import requests
 import subprocess
 import ast
+import redis
 import shutil
 from munch import munchify
 from uuid import uuid1
@@ -22,6 +20,7 @@ from k8s.job import Job
 from log import logger
 
 k8s_api = KubeAPI()
+redis_connection = redis.Redis()
 
 
 class DLJob():
@@ -292,20 +291,26 @@ class DLJob():
                 try:
                     output = subprocess.check_output(cmd, shell=True).decode('utf-8')
                     counter = 0
-                    while output == '' or output is None:
-                        output = subprocess.check_output(cmd, shell=True)
+                    progress_epoch = redis_connection.get("progress_epoch")
+                    progress_batch = redis_connection.get("progress_batch")
+                    val_loss = redis_connection.get("val_loss")
+                    while progress_epoch is None or progress_batch is None \
+                        or val_loss is None:
                         await asyncio.sleep(0.001 * (10 ** counter))
+                        progress_epoch = redis_connection.get("progress_epoch")
+                        progress_batch = redis_connection.get("progress_batch")
+                        val_loss = redis_connection.get("val_loss")
                         counter = counter + 1
                         if counter > 2:
                             break
-                    if output is not None and output != '':
+                    if progress_epoch and progress_batch and val_loss:
                         # should not be empty, even no progress, there should be initialization values written in files.
                         stat_dict = ast.literal_eval(output.replace('\n', ''))
                         if "progress" in stat_dict and "val-loss" in stat_dict:
-                            self.progress_list[i] = stat_dict["progress"]
+                            self.progress_list[i] = (progress_epoch, progress_batch)
 
                             # it is a list of (epoch, loss)
-                            self.val_loss_list[i] = stat_dict["val-loss"]
+                            self.val_loss_list[i] = val_loss
                         else:
                             logger.info("progress output does not have progress or val-loss value")
                     else:

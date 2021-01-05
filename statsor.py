@@ -60,7 +60,8 @@ class Statsor():
         redis_connection.set("cluster_mem_util", cluster_mem_util)
         redis_connection.set("cluster_bw_util", cluster_bw_util)
         redis_connection.set("cluster_gpu_util", cluster_gpu_util)
-        redis_connection.set("tot_num_running_tasks", tot_num_running_tasks)
+        for  num_running_task in tot_num_running_tasks:
+            redis_connection.rpush("tot_num_running_tasks", num_running_task)
         
         if Statsor.scheduler.name == "optimus_scheduler":
             redis_connection.set("scaling_overhead", Statsor.scheduler.scaling_overhead)
@@ -87,6 +88,3 @@ class Statsor():
             redis_connection.set("makespan", float('%.3f' % (Statsor.end)))
         else:
             redis_connection.set("makespan", -1)
-
-        async with aiofiles.open(Statsor.stats_txt, 'a') as f:
-            await f.write(str(redis_connection.set() + "\n"))
