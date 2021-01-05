@@ -73,6 +73,7 @@ async def listen(scheduler: SchedulerBase):
             elif command == 'submit':
                 for i, job_config_file in enumerate(args):
                     job = DLJob.create_from_config_file(i, 0, os.getcwd(), job_config_file)
+                    scheduler.submit_job(job)
             elif command == 'delete':
                 pass # TODO
             elif command == 'list':

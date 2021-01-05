@@ -12,6 +12,7 @@ import ast
 import shutil
 from munch import munchify
 from uuid import uuid1
+import concurrent
 
 import utils
 import yaml
@@ -281,6 +282,7 @@ class DLJob():
     async def _read_progress_stats(self):
         """Get the job progress from each worker.
         """
+        progress_fn = 'progress.txt'
 
         # create a new one each time, since the number of workers will change, hence the size of progress list
         self.progress_list = [(0, 0) for i in range(self.resources.worker.num_worker)]
@@ -345,7 +347,7 @@ class DLJob():
                             logger.error('read training speed timeout.')
                             return
                     stb_speed = float(output.decode("utf-8").replace('\n', '').split(' ')[1])
-                    self.speed_list[i] = float(str(stb_speed.decode("utf-8")))
+                    self.speed_list[i] = stb_speed
                 except Exception as e:
                     logger.error(str(e))
 
