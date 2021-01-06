@@ -68,16 +68,67 @@ async def listen(scheduler: SchedulerBase):
 
         # execute commands from client
         if sender == b'client':
-            if command == 'init':
+            if command == "init":
                 asyncio.create_task(scheduler.init_schedule())
-            elif command == 'submit':
-                for i, job_config_file in enumerate(args):
-                    job = DLJob.create_from_config_file(i, 0, os.getcwd(), job_config_file)
+            elif command == "submit":
+                for jobfile in args:
+                    job = DLJob.create_from_config_file(os.getcwd(), jobfile)
                     scheduler.submit_job(job)
+                    asyncio.create_task(
+                        send(redis_connection, 'submit', f'job successfully submitted with uid: {job.uid}'))
             elif command == 'delete':
-                pass # TODO
-            elif command == 'list':
-                pass # TODO
+                deleted = False
+                for job in scheduler.running_jobs:
+                    if job.uid == int(args):
+                        job.delete(True)
+                        #scheduler.allocator.free_job_resources(job)
+                        #scheduler.running_jobs.remove(job)
+                        deleted = True
+                        break
+                if deleted:
+                    await send(redis_connection, 'delete', 'job was deleted successfully')
+                else:
+                    await send(redis_connection, 'delete', 'job with given uid is not currently running')
+            elif command == 'status':
+                for job in scheduler.running_jobs:
+                    if job.uid == int(args):
+                        if job.metadata["dist_strategy"] == "ps":
+                            data = [
+                                [job.uid],
+                                [job.name],
+                                [job.metadata["dist_strategy"]],
+                                [job.metadata.batch_size],
+                                [job.resources.ps.num_ps],
+                                [job.resources.worker.num_worker],
+                                f"{job.progress}/{job.num_epochs}",
+                                [
+                                    job.training_speeds[
+                                        (job.resources.ps.num_ps, job.resources.worker.num_worker)
+                                    ]
+                                ],
+                                [job.ps_cpu_diff],
+                                [job.worker_cpu_diff],
+                            ]
+                        elif job.metadata["dist_strategy"] == "allreduce":
+                            data = [
+                                [job.uid],
+                                [job.name],
+                                [job.metadata["dist_strategy"]],
+                                [job.metadata.batch_size],
+                                [job.resources.worker.num_worker],
+                                f"{job.progress}/{job.num_epochs}",
+                                0,  # add the speed when we know how the speed is calculated when using Horovod
+                                [job.ps_cpu_diff],
+                                [job.worker_cpu_diff],
+                            ]
+                        await send(redis_connection, 'status', data)
+                        break
+
+            elif command == 'top':
+                data = [
+                    [job.uid, job.name, f"{job.progress}/{job.num_epochs}"] for job in scheduler.running_jobs
+                ]
+                await send(redis_connection, 'top', data)
             elif command == 'reset':
                 Timer.reset_clock()
                 await send(redis_connection, 'reset-ack', [1])
@@ -95,7 +146,7 @@ async def send(redis_connection, response, args: list = None):
     args (list): Arguments associated with response, if None no arguments
             are given to the command
     """
-    asyncio.create_task(redis_connection.publish("daemon", json.dumps({'response': response, 'args': args})))
+    await redis_connection.publish("daemon", json.dumps({'response': response, 'args': args}))
 
 
 def _get_command_args(message: str): # -> tuple[str, str]

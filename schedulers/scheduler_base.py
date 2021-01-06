@@ -18,11 +18,11 @@ class SchedulerBase(metaclass=abc.ABCMeta):
         self.allocator: DefaultAllocator
 
         self.queueing_jobs = PriorityQueue()
-        self.uncompleted_jobs = set()
-        self.completed_jobs = set()
-        self.running_jobs = set()
-        self.cur_ts_completed_jobs = set()
-        self.not_ready_jobs = set()
+        self.uncompleted_jobs = []
+        self.completed_jobs = []
+        self.running_jobs = []
+        self.cur_ts_completed_jobs = []
+        self.not_ready_jobs = []
 
         self.scaling_overhead = 0
         self.testing_overhead = 0
@@ -31,7 +31,7 @@ class SchedulerBase(metaclass=abc.ABCMeta):
         job.status = 'queueing'
         # priority queue based on arrival time
         self.queueing_jobs.put((job.arrival_time, job))
-        self.uncompleted_jobs.add(job)
+        self.uncompleted_jobs.append(job)
 
     async def stop(self):
         logger.debug(f'delete unfinished jobs...')
@@ -50,7 +50,7 @@ class SchedulerBase(metaclass=abc.ABCMeta):
         ps_placements, worker_placements = self.allocator.allocate(self.uncompleted_jobs)
 
         scaling_tic = time.time()
-        self.running_jobs = set()
+        self.running_jobs = []
         # send message to progress to update job progress
         coroutine_list = []
         for job in self.uncompleted_jobs:
@@ -61,7 +61,7 @@ class SchedulerBase(metaclass=abc.ABCMeta):
             if len(ps_placement) > 0 and len(worker_placement) > 0:
                 # this may cause many ssh connections on a server and an error "ssh_exchange_identification: Connection closed by remote host"
                 # to avoid this error, run 'echo "MaxStartups 100:10:200" | sudo tee -a /etc/ssh/sshd_config && sudo service ssh restart' on the server
-                self.running_jobs.add(job)
+                self.running_jobs.append(job)
                 coroutine_list.append(asyncio.create_task(self.__run(job, ps_placement, worker_placement)))
                 job.status = 'running'
             else:
@@ -111,9 +111,9 @@ class SchedulerBase(metaclass=abc.ABCMeta):
             self.allocator.free_job_resources(job)
 
         for job in self.cur_ts_completed_jobs:
-            self.uncompleted_jobs.discard(job)
-            self.running_jobs.discard(job)
-            self.completed_jobs.add(job)
+            self.uncompleted_jobs.remove(job)
+            self.running_jobs.remove(job)
+            self.completed_jobs.append(job)
 
         if len(stopping_jobs) > 0:
             await asyncio.wait(stopping_jobs)
