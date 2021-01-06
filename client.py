@@ -122,6 +122,7 @@ class Client:
             ]
             print(tabulate(data, headers=metrics))
 
+
 def _get_args(message):
     """Parses received message from daemon into arguments part
 
@@ -152,7 +153,7 @@ def main():
         job_id = args["<uid>"]
         client.status(job_id)
     elif args["test"]:
-        pass # TODO
+        pass  # TODO
     elif args["simulate"]:
         pass
 
