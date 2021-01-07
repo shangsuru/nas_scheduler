@@ -8,6 +8,7 @@ from schedulers.scheduler_base import SchedulerBase
 from k8s.api import KubeAPI
 from timer import Timer
 from statsor import Statsor
+from heartbeat import Heartbeat
 import asyncio
 import aioredis
 import json
@@ -32,10 +33,14 @@ async def main():
         scheduler = DRFScheduler(cluster)
     else:
         logger.error(f'Scheduler {config.JOB_SCHEDULER} not found.')
+        return
+
     Statsor.scheduler = scheduler
     Statsor.cluster = cluster
 
-    await listen(scheduler)
+    heartbeat = Heartbeat(scheduler, cluster)
+
+    await listen(scheduler, heartbeat)
 
 
 async def setup_redis_connection():
@@ -53,17 +58,25 @@ async def setup_redis_connection():
     return redis_connection, channel
 
 
-async def listen(scheduler: SchedulerBase):
+async def listen(scheduler: SchedulerBase, heartbeat: Heartbeat):
     """Main loop of the daemon waiting for client input
     Args:
         scheduler (SchedulerBase): Scheduler instance managing and scheduling
             jobs submitted by client
+        heartbeat (Heartbeat): Heartbeat instance to monitor unavailable nodes in the cluster.
     """
 
     redis_connection, channel = await setup_redis_connection()
 
     # listen for messages
-    async for sender, message in channel.iter():
+    while True:
+        await heartbeat.on_iteration()
+
+        try:
+            sender, message = await asyncio.wait_for(channel.get(), .001)
+        except asyncio.TimeoutError:
+            continue
+
         command, args = _get_command_args(message)
 
         # execute commands from client
