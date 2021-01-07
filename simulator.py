@@ -9,7 +9,6 @@ import threading
 import config
 from log import logger
 from dl_job import DLJob
-from payload import Payload
 import redis
 import json
 
