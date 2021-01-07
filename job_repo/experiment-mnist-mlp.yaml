@@ -4,8 +4,7 @@ metadata:
   batch_size: 32
   scale_bs: True
   num_examples: 60000
-
-envs:
+  dist_strategy: 'ps'
   kv_store_big_array_bound: '1000000'
   kv_store: dist_sync
   ps_verbose:

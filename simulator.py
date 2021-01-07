@@ -1,63 +1,48 @@
-"""NASS Simulator.
-
-Usage:
-    simulator.py [--vhost=<vhost>]
-
-Options:
-    --vhost=<vhost>             RabbitMQ Vhost name [default: /]
-    -h --help                   Show this screen
-"""
-
 import os
+import sys
 import time
-import signal
 import random
 import yaml
 from pathlib import Path
 import threading
-from docopt import docopt
-from schema import Schema, Use, SchemaError
 
 import config
-from communication import Handler, Payload, hub
 from log import logger
 from dl_job import DLJob
-
-docopt_schema = Schema({
-    '--vhost': Use(str),
-})
-
-
-def exit_gracefully(signum, frame):
-    frame.f_locals['self'].stop()
-
-
-signal.signal(signal.SIGINT, exit_gracefully)
-signal.signal(signal.SIGTERM, exit_gracefully)
+import redis
+import json
 
 
 def prepare_job_repo():
     job_repo = list()
     for filename in Path('job_repo').glob('*.yaml'):
-        with open(filename, 'r') as f:
-            job_repo.append(yaml.full_load(f))
+        job_repo.append(str(filename))
 
     return job_repo
 
 
-class Simulator(Handler):
+class Simulator():
     def __init__(self):
-        super().__init__(hub.connection, entity='simulator', daemon=False)
+        self.redis_connection = redis.Redis()
+        self.channel = self.redis_connection.pubsub()
+        self.channel.psubscribe(['daemon', 'timer'])
         self.job_dict = dict()
         self.counter = 0
         self.generate_jobs()
         self.initiated = threading.Event()
-        hub.push(Payload(None, self.entity, 'reset'), 'timer')
 
-    def stop(self):
-        super().stop()
-        logger.debug(f'submitted {self.counter} jobs')
-        logger.debug(f'exited.')
+        self.send("reset")
+        logger.debug('Simulator sent reset signal')
+        # wait for ack
+        for msg in self.channel.listen():
+            if msg['pattern'] is None:  # TODO
+                continue
+            if msg['channel'] == b'timer':
+                self.submit_job(int(msg['data']))
+            else: 
+                payload = json.loads(msg["data"])
+                self.submit_job(int(payload["args"][0])) 
+
 
     def generate_jobs(self):
         tic = time.time()
@@ -68,16 +53,14 @@ class Simulator(Handler):
         for i in range(config.TOT_NUM_JOBS):
             # uniform randomly choose one
             index = random.randint(0, len(jobrepo) - 1)
-            job_conf = jobrepo[index]
-            job = DLJob(i, index, os.getcwd(), job_conf)
+            job_config_file = jobrepo[index]
 
             # randomize job arrival time
-            t = random.randint(1, config.T)  # clock start from 1
-            job.arrival_slot = t
-            if job.arrival_slot in self.job_dict:
-                self.job_dict[job.arrival_slot].append(job)
+            timeslot = random.randint(1, config.T)  # clock start from 1
+            if timeslot in self.job_dict:
+                self.job_dict[timeslot].append(job_config_file)
             else:
-                self.job_dict[job.arrival_slot] = [job]
+                self.job_dict[timeslot] = [job_config_file]
 
         toc = time.time()
         logger.debug(f'has generated {config.TOT_NUM_JOBS} jobs')
@@ -87,41 +70,29 @@ class Simulator(Handler):
         # put jobs into queue
         logger.info(f'-------*********-------- starting timeslot {t} --------*********-------')
         if t in self.job_dict:
-            for job in self.job_dict[t]:
-                job.arrival_time = time.time()
-                msg = Payload(t, 'simulator', 'submission', {'job': job})
-                hub.push(msg, 'scheduler')  # enqueue jobs at the beginning of each time slot
-                self.counter += 1
+            self.counter += len(self.job_dict[t])
+            self.send("submit", args=self.job_dict[t])
 
         # notify the scheduler that all jobs in this timeslot have been submitted
-        msg = Payload(t, 'simulator', 'submission', None)
-        hub.push(msg, 'scheduler')
+        self.send("init")
 
         if self.counter == config.TOT_NUM_JOBS:
             logger.debug(f'initiated stop')
-            self.stop()
+            sys.exit(0)
+
+
+    def send(self, command, args=None):
+        self.redis_connection.publish(
+            "client", json.dumps({'command': command, 'args': args})
+        )
 
     def process(self, msg):
-        if msg.type == 'reset':
-            self.initiated.set()
-
-        if self.initiated.wait():
+        if msg.type == 'reset' or msg.type == 'update':
             self.submit_job(msg.timestamp)
 
 
 def main():
-    arguments = docopt(__doc__, version=f'v0.1')
-
-    try:
-        arguments = docopt_schema.validate(arguments)
-    except SchemaError as e:
-        exit(e)
-
-    hub.connect(arguments['--vhost'])
-
-    sim = Simulator()
-    sim.start()
-    sim.join()
+    Simulator()
 
 
 if __name__ == '__main__':

@@ -1,63 +1,60 @@
-import time
-
+import asyncio
 import config
-from communication import Handler, hub, Payload
 from log import logger
+import time
+from timer import Timer
 
-class Progressor(Handler):
-    def __init__(self, timer):
-        super().__init__(connection=hub.connection, entity='progressor')
-        self.timer = timer
-        self.running_jobs = set()
-        self.num_running_tasks = []
 
-        self.start()
+class Progressor():
+    running_jobs = set()
+    num_running_tasks = []
 
-    def process(self, msg: Payload):
-        job = msg.fetch_content('job')
-        if msg.source == 'scheduler' and msg.type == 'running':
-            if job not in self.running_jobs:
-                self.running_jobs.add(job)
-        elif msg.source == 'scheduler' and msg.type == 'pending':
-            if job in self.running_jobs:
-                self.running_jobs.remove(job)
-        elif msg.source == 'scheduler' and msg.type == 'done' and job is None:
-            self._update_progress()
+    @staticmethod
+    def add_to_running_jobs(job):
+        Progressor.running_jobs.add(job)
 
-    def _update_progress(self):
+    @staticmethod  
+    def remove_from_running_jobs(job):
+        Progressor.running_jobs.discard(job)
+
+    @staticmethod
+    async def update_progress():
         # update job progress and training speed periodically
         freq = 8
         counter = 0
+        finished_jobs = []
 
         # save progress of each job at the beginning of time slot
         saved_progress_dict = dict()
-        for job in self.running_jobs.copy():
+        for job in Progressor.running_jobs.copy():
             saved_progress_dict[job.uid] = job.progress
 
         # collect cpu occupations
-        self.ps_cpu_occupations = []
-        self.worker_cpu_occupations = []
+        Progressor.ps_cpu_occupations = []
+        Progressor.worker_cpu_occupations = []
 
         # collect # of running tasks
-        self.num_running_tasks = []
+        Progressor.num_running_tasks = []
 
-        while counter < freq and len(self.running_jobs) > 0:
+        while counter < freq and len(Progressor.running_jobs) > 0:
             # if no jobs in this timeslot, skip it
-            for i in range(config.TS_INTERVAL//freq):
-                time.sleep(1)
-                if self.should_stop:
-                    return
+            for i in range(config.TS_INTERVAL // freq):
+                await asyncio.sleep(1)
             counter += 1
             cpu_usage_dict = dict()  # job, cpu_usage in this interval
             num_tasks = 0
 
-            for job in self.running_jobs.copy():
+            for job in Progressor.running_jobs.copy():
                 try:
                     logger.debug(f'Trying to read progress/speed stats #{counter}')
-                    (progress_list, val_loss_list) = job.get_training_progress_stats()
-                    speed_list = job.get_training_speed()
-                    (ps_metrics, worker_metrics) = job.get_metrics()
+                    get_progress = asyncio.create_task(job.get_training_progress_stats())
+                    get_speed = asyncio.create_task(job.get_training_speed())
+                    get_metrics = asyncio.create_task(job.get_metrics())
 
+                    (progress_list, val_loss_list) = await get_progress
+                    speed_list = await get_speed
+                    (ps_metrics, worker_metrics) = await get_metrics
+                    
                     if sum(speed_list) == 0 or not progress_list:
                         continue
 
@@ -145,16 +142,15 @@ class Progressor(Handler):
                 if job.progress >= job.num_epochs:
                     # progress start from epoch 0
                     job.status = 'completed'
-                    job.end_slot = self.timer.get_clock()
+                    job.end_slot = Timer.get_clock()
                     job.end_time = time.time()
                     # job.delete(True)
                     logger.info(f'{job.name} has completed. \
                     # of time slots: {job.end_slot - job.arrival_slot} \
                     completion time: {job.end_time - job.arrival_time}')
 
-                    self.running_jobs.remove(job)
-                    msg = Payload(self.timer.get_clock(), 'progressor', 'completion', {'job': job})
-                    hub.push(msg, 'scheduler')
+                    Progressor.running_jobs.remove(job)
+                    finished_jobs.append(job)
                 else:
                     continue
 
@@ -171,15 +167,14 @@ class Progressor(Handler):
 
             if len(slot_avg_ps_cpu_list) > 0:
                 ps_cpu_occupation = sum(slot_avg_ps_cpu_list) / len(slot_avg_ps_cpu_list)
-                self.ps_cpu_occupations.append(ps_cpu_occupation)
+                Progressor.ps_cpu_occupations.append(ps_cpu_occupation)
                 logger.debug(f'Normalized ps cpu: {ps_cpu_occupation}')
 
                 worker_cpu_occupation = sum(slot_avg_worker_cpu_list) / len(slot_avg_worker_cpu_list)
-                self.worker_cpu_occupations.append(worker_cpu_occupation)
+                Progressor.worker_cpu_occupations.append(worker_cpu_occupation)
                 logger.debug(f'Normalized worker cpu: {worker_cpu_occupation}')
 
-            self.num_running_tasks.append(num_tasks)
+            Progressor.num_running_tasks.append(num_tasks)
 
         # end of time slot
-        msg = Payload(self.timer.get_clock(), 'progressor', 'completion', None)
-        hub.push(msg, 'scheduler')
+        return finished_jobs

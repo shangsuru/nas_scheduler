@@ -1,7 +1,7 @@
 import os
 import argparse
 import logging
-logging.basicConfig(filename="./data/training.log", filemode="w", level=logging.INFO)
+logging.basicConfig(filename="/data/training.log", filemode="w", level=logging.INFO)
 logging.getLogger().addHandler(logging.StreamHandler())
 
 from common import data, fit

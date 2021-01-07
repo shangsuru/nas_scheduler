@@ -8,7 +8,6 @@ from scipy.optimize import curve_fit
 import random
 
 import config
-from communication import hub, Payload
 from schedulers.scheduler_base import SchedulerBase
 from allocators.default_allocator import DefaultAllocator
 
@@ -355,15 +354,11 @@ class OptimusEstimator():
 
 
 class OptimusScheduler(SchedulerBase):
-    def __init__(self, cluster, timer):
-        """
-        Args:
-            timer (Timer): timer instance
-        """
-        super().__init__(cluster, timer)
+    def __init__(self, cluster):
+        super().__init__(cluster)
         self.estimator = OptimusEstimator(cluster)
         self.allocator = DefaultAllocator(cluster)
-        self.start()
+        self.name = "optimus_scheduler"
 
     def __del__(self):
         super().__del__()
@@ -389,15 +384,11 @@ class OptimusScheduler(SchedulerBase):
         logger.debug(f'estimated speed: {est_speed}')
 
         if est_speed <= 0:
-            if job not in self.not_ready_jobs:
-                self.not_ready_jobs.append(job)
             return
         rem_time = rem_epoch / est_speed
 
         est_speed = self.estimator.est_speed(job, job.resources.ps.num_ps + 1, job.resources.worker.num_worker)
         if est_speed <= 0:
-            if job not in self.not_ready_jobs:
-                self.not_ready_jobs.append(job)
             return
         ps_rem_time = rem_epoch / est_speed
         resource_reqs = (job.resources.ps.ps_cpu, job.resources.ps.ps_mem, job.resources.ps.ps_bw)
@@ -410,8 +401,6 @@ class OptimusScheduler(SchedulerBase):
         # if add worker 1
         est_speed = self.estimator.est_speed(job, job.resources.ps.num_ps, job.resources.worker.num_worker + 1)
         if est_speed <= 0:
-            if job not in self.not_ready_jobs:
-                self.not_ready_jobs.append(job)
             return
         worker_rem_time = rem_epoch / est_speed
         resource_reqs = (
@@ -441,7 +430,7 @@ class OptimusScheduler(SchedulerBase):
 
         # first estimate speed
         test_tic = time.time()
-        self.estimator.existing_jobs = self.uncompleted_jobs + self.completed_jobs
+        self.estimator.existing_jobs = list(self.uncompleted_jobs) + list(self.completed_jobs)
         self.estimator.test_speed(new_jobs)
         logger.debug(f'Finish testing speed for new jobs.')
         test_toc = time.time()
@@ -515,9 +504,6 @@ class OptimusScheduler(SchedulerBase):
             else:
                 # no enough resource
                 break
-
-        # TODO: how to handle not_ready_jobs
-        logger.debug(f'not ready jobs: {self.not_ready_jobs}')
 
         # check the scheduling result
         for job in self.uncompleted_jobs:
