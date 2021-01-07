@@ -28,7 +28,7 @@ class DLJob():
 
     Attributes:
         uid (int): job unique id -- incremental style
-        workload_id (int): unique index for the job. useful for identifying 
+        tag (int): unique index for the job. useful for identifying
             the job characteristic in the future.
         name (str): job name as in '{uid}-{name}-{model_name}'. e.g. '1-measurement-imagenet-vgg16'
         timestamp (str): job creation time as in '%Y-%m-%d-%H:%M:%S'
@@ -37,12 +37,12 @@ class DLJob():
     """
     ps_placement: None
 
-    def __init__(self, uid, workload_id, dir_prefix, conf):
+    def __init__(self, uid, tag, dir_prefix, conf):
         """Initializes a job object.
         
         Args:
             uid (int): job unique id -- incremental style
-            workload_id (int): unique index for the job. useful for identifying 
+            tag (int): unique index for the job. useful for identifying
                 the job characteristic in the future.
             dir_prefix (str): job working directory
             conf (dict): job configuration dictionary
@@ -54,7 +54,7 @@ class DLJob():
         self.envs = munchify(conf.get('envs'))
 
         self.uid = uid
-        self.workload_id = workload_id
+        self.tag = tag
         self.name = f'{uid}-{self.metadata.name}-{self.metadata.modelname}'
 
         self.timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
@@ -107,13 +107,10 @@ class DLJob():
         return f'DLJob(name={self.name})'
 
     @staticmethod
-    def create_from_config_file(uid: int , workload_id: int , working_directory: str,
+    def create_from_config_file(working_directory: str,
                         config_file: str):
         """Creates a DLJob by reading its configuration from a yaml file.
         Args:
-            uid: integer that uniquely identifies the DL job
-            workload_id: unique index for the job. Useful for identifying the
-                job characteristic in the future.
             working_directory: working directory of the job
             config_file: yaml file containing the job configuration
         """
@@ -472,7 +469,7 @@ class DLJob():
 
             # delete job working dir
             shutil.rmtree(self.dir)
-
+    
     def get_total_required_resources(self):
         """Returns: dict containing the required amount of resources to host this job."""
         # if we use the dist_strategy ps we also need to count the resources required by the parameter servers

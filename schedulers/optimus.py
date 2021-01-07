@@ -97,7 +97,7 @@ class OptimusEstimator():
         # little improvement: if two jobs are of the same type, they can reuse the training speed points
         for existing_job in self.existing_jobs:
             for new_job in new_jobs:
-                if existing_job.workload_id == new_job.workload_id:  # same type of job
+                if existing_job.tag == new_job.tag:  # same type of job
                     for key, value in existing_job.training_speeds.items():
                         if key in new_job.training_speeds:  # simply average
                             new_job.training_speeds[key] = (new_job.training_speeds[key] + value) / 2
@@ -223,7 +223,7 @@ class OptimusEstimator():
 
         existing_epochs = []
         for existing_job in self.existing_jobs:
-            if existing_job.workload_id == job.workload_id:  # same type of job
+            if existing_job.tag == job.tag:  # same type of job
                 if existing_job.num_epochs < sys.maxsize:
                     existing_epochs.append(existing_job.num_epochs)
 
