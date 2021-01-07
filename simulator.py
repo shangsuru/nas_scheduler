@@ -1,17 +1,13 @@
-import os
 import sys
 import time
 import random
-import yaml
 from pathlib import Path
 import threading
 
 import config
 from log import logger
-from dl_job import DLJob
 import redis
 import json
-
 
 def prepare_job_repo():
     job_repo = list()
@@ -41,6 +37,8 @@ class Simulator():
                 self.submit_job(int(msg['data']))
             else: 
                 payload = json.loads(msg["data"])
+                if (payload["response"] == "submit"):
+                    continue
                 self.submit_job(int(payload["args"][0])) 
 
 
