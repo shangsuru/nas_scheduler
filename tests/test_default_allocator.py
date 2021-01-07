@@ -42,7 +42,7 @@ def get_jobs_list(amount):
     jobs = []
     job_repo = prepare_job_repo()
     for i in range(amount):
-        job = DLJob(uid=i, tag=i, dir_prefix=os.getcwd(), conf=job_repo[i % len(job_repo)])
+        job = DLJob(uid=i, workload_id=i, dir_prefix=os.getcwd(), conf=job_repo[i % len(job_repo)])
         jobs.append(job)
     return jobs
 
