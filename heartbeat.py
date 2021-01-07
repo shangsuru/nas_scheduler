@@ -45,16 +45,33 @@ class Heartbeat(Handler):
         (See: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase)
         """
         nodes = k8s_api.get_nodes()
+        erroneous_pods = []
         erroneous_nodes = []
 
         # Collect nodes that may have experienced an error
         for node in nodes:
             pods = k8s_api.get_pods(field_selector={"spec.nodeName": node.metadata.name})
+            node_failed = True
 
-            if any(p.status.phase != "Failed" for p in pods):
+            # Collect erroneous pods and check if node has failed
+            for pod in pods:
+                if pod.status.phase != "Failed":
+                    node_failed = False
+                    continue
+
+                if pod in erroneous_pods:
+                    continue
+
+                erroneous_pods.append(pod)
+
+            if not node_failed:
                 continue
 
             erroneous_nodes.append(node)
+
+        # Handle erroneous pods
+        for pod in erroneous_pods:
+            logger.warn(f"Pod {pod} has failed.")
 
         # Handle erroneous nodes
         for node in erroneous_nodes:
