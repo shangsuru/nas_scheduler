@@ -2,7 +2,7 @@ import asyncio
 import config
 from log import logger
 import time
-import timer
+from timer import Timer
 
 
 class Progressor():
@@ -142,7 +142,7 @@ class Progressor():
                 if job.progress >= job.num_epochs:
                     # progress start from epoch 0
                     job.status = 'completed'
-                    job.end_slot = timer.get_clock()
+                    job.end_slot = Timer.get_clock()
                     job.end_time = time.time()
                     # job.delete(True)
                     logger.info(f'{job.name} has completed. \
