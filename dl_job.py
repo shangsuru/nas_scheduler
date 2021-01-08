@@ -90,6 +90,9 @@ class DLJob():
         self.num_epochs = 0
         self.epoch_size = 0
 
+        self.ps_cpu_diff = None
+        self.worker_cpu_diff = None
+
         self.worker_mount_dirs = []
 
     def __lt__(self, other):

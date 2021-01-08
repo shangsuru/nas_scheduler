@@ -104,12 +104,14 @@ class Progressor():
                 for metrics in ps_metrics:
                     ps_cpu_usage_list.append(metrics['cpu/usage_rate'] / 1000.0)
                 ps_cpu_diff = max(ps_cpu_usage_list) - min(ps_cpu_usage_list)
+                job.ps_cpu_diff = ps_cpu_diff
                 avg_ps_cpu = sum(ps_cpu_usage_list)/len(ps_cpu_usage_list)
 
                 worker_cpu_usage_list = []
                 for metrics in worker_metrics:
                     worker_cpu_usage_list.append(metrics['cpu/usage_rate'] / 1000.0)
                 worker_cpu_diff = max(worker_cpu_usage_list) - min(worker_cpu_usage_list)
+                job.worker_cpu_diff = worker_cpu_diff
                 avg_worker_cpu = sum(worker_cpu_usage_list) / len(worker_cpu_usage_list)
 
                 # cpu usage

@@ -38,7 +38,7 @@ class Client:
             "client", json.dumps({"command": "submit", "args": [jobfile]})
         )
         for msg in self.channel.listen():
-            if msg["data"] != 1:
+            if msg["type"] != "psubscribe":
                 args = _get_args(msg["data"])
                 print(args)
                 break
@@ -78,7 +78,7 @@ class Client:
             if msg["type"] != "psubscribe":
                 data = _get_args(msg["data"])
                 break
-        headers = ["id", "name", "total progress/total epochs"]
+        headers = ["id", "name", "total progress/total epochs", "sum_speed(batches/second)"]
         print(tabulate(data, headers=headers))
 
     def status(self, uid):
@@ -95,7 +95,7 @@ class Client:
             if msg["type"] != "psubscribe":
                 data = _get_args(msg["data"])
                 break
-        if data[3, 0] == "ps":
+        if data[0][2] == "ps":
             metrics = [
                 "job id",
                 "job name",
@@ -109,7 +109,7 @@ class Client:
                 "worker cpu usage diff",
             ]
             print(tabulate(data, headers=metrics))
-        elif data[3, 0] == "allreduce":
+        elif data[0][2] == "allreduce":
             metrics = [
                 "job id",
                 "job name",
