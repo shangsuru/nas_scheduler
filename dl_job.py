@@ -4,8 +4,6 @@ import time
 from timer import Timer
 from datetime import datetime
 import os
-import subprocess
-import ast
 import redis
 import shutil
 from munch import munchify
@@ -472,7 +470,7 @@ class DLJob():
 
             # delete job working dir
             shutil.rmtree(self.dir)
-
+            
     def get_total_required_resources(self):
         """Returns: dict containing the required amount of resources to host this job."""
         # if we use the dist_strategy ps we also need to count the resources required by the parameter servers
