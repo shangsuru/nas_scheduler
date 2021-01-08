@@ -51,7 +51,7 @@ class DefaultAllocator(ResourceAllocator):
                 # in each iteration we will try allocating a worker and a ps while enough resources are left
                 if i < job.resources.worker.num_worker:     # only enter this block if more workers were requested
                     res_usage = np.array([job.resources.worker.worker_cpu, job.resources.worker.worker_mem,
-                                          job.resources.worker.worker_bw, job.resources.worker.worker_cpu])
+                                          job.resources.worker.worker_bw, job.resources.worker.worker_gpu])
                     available_resources_minus_job_resources[i % node_amount] -= res_usage   # update available resources
 
                 if i < job.resources.ps.num_ps:             # only enter this block if more ps were requested
