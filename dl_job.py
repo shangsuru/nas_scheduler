@@ -16,6 +16,7 @@ import yaml
 from k8s.api import KubeAPI
 from k8s.job import Job
 from log import logger
+from utils import fetch_with_timeout
 
 k8s_api = KubeAPI()
 redis_connection = redis.Redis()
@@ -287,25 +288,16 @@ class DLJob():
 
         async def run(i):
             try:
-                counter = 0
-                progress_epoch = redis_connection.get(f"{self.name}-progress_epoch")
-                progress_batch = redis_connection.get(f"{self.name}-progress_batch")
-                val_loss = redis_connection.get(f"{self.name}-val_loss")
-                while progress_epoch is None or progress_batch is None \
-                    or val_loss is None:
-                    await asyncio.sleep(0.001 * (10 ** counter))
-                    progress_epoch = redis_connection.get(f"{self.name}-progress_epoch")
-                    progress_batch = redis_connection.get(f"{self.name}-progress_batch")
-                    val_loss = redis_connection.get(f"{self.name}-val_loss")
-                    counter = counter + 1
-                    if counter > 2:
-                        break
-                if progress_epoch and progress_batch and val_loss:
-                    # should not be empty, even no progress, there should be initialization values written in files.
-                    self.progress_list[i] = (progress_epoch, progress_batch)
-                    self.val_loss_list[i] = val_loss
+                progress_epoch, progress_batch, val_loss = await asyncio.gather(
+                    fetch_with_timeout(redis_connection, f"{self.name}-progress_epoch", 1000), 
+                    fetch_with_timeout(redis_connection, f"{self.name}-progress_batch", 1000), 
+                    fetch_with_timeout(redis_connection, f"{self.name}-val_loss", 1000)
+                )
+
+                self.progress_list[i] = (progress_epoch, progress_batch)
+                self.val_loss_list[i] = val_loss
             except Exception as e:
-                logger.error(str(e))
+                logger.error("Failed to read training metrics from redis:", str(e))
 
         coroutine_list = []
         for i in range(self.resources.worker.num_worker):
