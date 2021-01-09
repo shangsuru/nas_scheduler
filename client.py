@@ -1,4 +1,5 @@
 """NASS Scheduler Frontend.
+
 Usage:
     client.py submit <file>
     client.py init
@@ -8,8 +9,18 @@ Usage:
     client.py simulate
     client.py test
 
+Description:
+    submit:     submit a job (as a yaml file) to the scheduler
+    init:       initialize the job scheduling
+    top:        a single view for all the jobs running on the cluster (limited metrics)
+    delete:     delete a job by its uid
+    status:     list the status of the job with a given id (in-depth metrics)
+    simulate:   runs simulation scenario
+    test:       runs end-to-end testing
+
 Options:
   -h --help                   Show this screen.
+
 """
 
 from docopt import docopt
@@ -27,6 +38,17 @@ class Client:
         self.channel = self.redis_connection.pubsub()
         self.channel.psubscribe("daemon")
 
+    def listen(self):
+        """
+        listens for a response from the daemon and returns the data
+        """
+        for msg in self.channel.listen():
+            if msg["type"] != "psubscribe":
+                payload = json.loads(msg["data"])
+                data = payload["args"]
+                break
+        return data
+
     def submit(self, jobfile):
         """
         Sends a submit message to the daemon
@@ -37,11 +59,7 @@ class Client:
         self.redis_connection.publish(
             "client", json.dumps({"command": "submit", "args": [jobfile]})
         )
-        for msg in self.channel.listen():
-            if msg["type"] != "psubscribe":
-                args = _get_args(msg["data"])
-                print(args)
-                break
+        print(self.listen())
 
     def init(self):
         """
@@ -61,11 +79,7 @@ class Client:
         self.redis_connection.publish(
             "client", json.dumps({"command": "delete", "args": uid})
         )
-        for msg in self.channel.listen():
-            if msg["type"] != "psubscribe":
-                args = _get_args(msg["data"])
-                print(args)
-                break
+        print(self.listen())
 
     def top(self):
         """
@@ -74,12 +88,8 @@ class Client:
         self.redis_connection.publish(
             "client", json.dumps({"command": "top", "args": None})
         )
-        for msg in self.channel.listen():
-            if msg["type"] != "psubscribe":
-                data = _get_args(msg["data"])
-                break
         headers = ["id", "name", "total progress/total epochs", "sum_speed(batches/second)"]
-        print(tabulate(data, headers=headers))
+        print(tabulate(self.listen(), headers=headers))
 
     def status(self, uid):
         """
@@ -91,10 +101,7 @@ class Client:
         self.redis_connection.publish(
             "client", json.dumps({"command": "status", "args": uid})
         )
-        for msg in self.channel.listen():
-            if msg["type"] != "psubscribe":
-                data = _get_args(msg["data"])
-                break
+        data = self.listen()
         if data[0][2] == "ps":
             metrics = [
                 "job id",
@@ -121,19 +128,6 @@ class Client:
                 "worker cpu usage diff",
             ]
             print(tabulate(data, headers=metrics))
-
-def _get_args(message):
-    """Parses received message from daemon into arguments part
-
-    Args:
-        message (str): Message received from daemon
-
-    Returns:
-        payload['args'] (str): Arguments part of the daemon message
-    """
-    payload = json.loads(message)
-    return payload["args"]
-
 
 def main():
     args = docopt(__doc__, version="Client 1.0")

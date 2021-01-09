@@ -110,12 +110,12 @@ class DLJob():
         return f'DLJob(name={self.name})'
 
     @staticmethod
-    def create_from_config_file(working_directory: str,
-                        config_file: str):
+    def create_from_config_file(working_directory,
+                        config_file):
         """Creates a DLJob by reading its configuration from a yaml file.
         Args:
-            working_directory: working directory of the job
-            config_file: yaml file containing the job configuration
+            working_directory (str): working directory of the job
+            config_file (str): yaml file containing the job configuration
         """
         with open(config_file, "r") as f:
             job_config = yaml.full_load(f)
