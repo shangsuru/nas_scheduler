@@ -2,7 +2,6 @@
 
 Usage:
     client.py submit <file>
-    client.py init
     client.py top
     client.py delete <uid>
     client.py status <uid>
@@ -11,7 +10,6 @@ Usage:
 
 Description:
     submit:     submit a job (as a yaml file) to the scheduler
-    init:       initialize the job scheduling
     top:        a single view for all the jobs running on the cluster (limited metrics)
     delete:     delete a job by its uid
     status:     list the status of the job with a given id (in-depth metrics)
@@ -60,14 +58,6 @@ class Client:
             "client", json.dumps({"command": "submit", "args": [jobfile]})
         )
         print(self.listen())
-
-    def init(self):
-        """
-        Sends an init message to the daemon
-        """
-        self.redis_connection.publish(
-            "client", json.dumps({"command": "init", "args": None})
-        )
 
     def delete(self, uid):
         """
@@ -135,8 +125,6 @@ def main():
     if args["submit"]:
         jobfile = args["<file>"]
         client.submit(jobfile)
-    elif args["init"]:
-        client.init()
     elif args["top"]:
         client.top()
     elif args["delete"]:
