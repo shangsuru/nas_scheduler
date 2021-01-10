@@ -1,6 +1,6 @@
 import pytest
 from cluster import Cluster
-from simulator import prepare_job_repo
+from tests.end_to_end import prepare_job_repo
 from allocators.default_allocator import DefaultAllocator
 from pathlib import Path
 import yaml

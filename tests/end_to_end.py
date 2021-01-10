@@ -17,7 +17,7 @@ def prepare_job_repo():
     return job_repo
 
 
-class Simulator():
+class EndToEndTest():
     def __init__(self):
         self.redis_connection = redis.Redis()
         self.channel = self.redis_connection.pubsub()
@@ -28,18 +28,21 @@ class Simulator():
         self.initiated = threading.Event()
 
         self.send("reset")
-        logger.debug('Simulator sent reset signal')
+        logger.debug('EndToEndTest sent reset signal')
         # wait for ack
         for msg in self.channel.listen():
             if msg['pattern'] is None:  # TODO
                 continue
+            if msg['channel'] == b'timer' and self.counter == config.TOT_NUM_JOBS:
+                logger.debug(f'initiated stop')
+                sys.exit(0)
             if msg['channel'] == b'timer':
                 self.submit_job(int(msg['data']))
-            else: 
+            else:
                 payload = json.loads(msg["data"])
                 if (payload["response"] == "submit"):
                     continue
-                self.submit_job(int(payload["args"][0])) 
+                self.submit_job(int(payload["args"][0]))
 
 
     def generate_jobs(self):
@@ -74,23 +77,14 @@ class Simulator():
         # notify the scheduler that all jobs in this timeslot have been submitted
         self.send("init")
 
-        if self.counter == config.TOT_NUM_JOBS:
-            logger.debug(f'initiated stop')
-            sys.exit(0)
-
-
     def send(self, command, args=None):
         self.redis_connection.publish(
             "client", json.dumps({'command': command, 'args': args})
         )
 
-    def process(self, msg):
-        if msg.type == 'reset' or msg.type == 'update':
-            self.submit_job(msg.timestamp)
-
 
 def main():
-    Simulator()
+    EndToEndTest()
 
 
 if __name__ == '__main__':
