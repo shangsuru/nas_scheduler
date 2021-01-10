@@ -316,7 +316,7 @@ class DLJob():
 
         async def run(i):
             try:
-                stb_speed = fetch_with_timeout(redis_connection, f"{self.name}-stb_speed", 1000)
+                stb_speed = await fetch_with_timeout(redis_connection, f"{self.name}-stb_speed", 1000)
                 self.speed_list[i] = float(str(stb_speed.decode("utf-8")))
             except Exception as e:
                 logger.error("Failed to read training metrics from redis:", str(e))
