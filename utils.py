@@ -38,24 +38,22 @@ def dict_to_str(dict_obj):
     return ', '.join(f'{key}={val}' for (key, val) in dict_obj.items())
 
 
-async def fetch_with_timeout(redis_connection, key, timeout):
-    """Used when its required to fetch a key from redis with a timeout
+async def fetch_with_timeout(redis_connection, key, timeout, num_retries = 1):
+    """Used when it is required to fetch a key from redis with a timeout
 
     Args:
         redis_connection: connection to the redis database
         key (str): key for the value to be fetched from redis
-        timeout (int): timeout in milliseconds
+        timeout (int): time (in ms) until a subsequent attempt to fetch the key
+        num_retries (int): number of attempts to fetch the key
 
     Raises:
-        TimeoutError: when given time is over and value could not be fetched
+        TimeoutError: value could not be fetched with given number of retries
     """
-    counter = 0
     value = redis_connection.get(key)
-    while key is None:
-        await asyncio.sleep(0.25 * timeout)
+    for _ in range(num_retries):
+        await asyncio.sleep(timeout)
         value = redis_connection.get(key)
-        counter = counter + 1
-        if counter > 3:
-            raise TimeoutError
-
-    return value
+        if value:
+            return value   
+    raise TimeoutError

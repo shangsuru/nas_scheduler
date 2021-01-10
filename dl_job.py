@@ -316,18 +316,10 @@ class DLJob():
 
         async def run(i):
             try:
-                counter = 0
-                stb_speed = redis_connection.get(f"{self.name}-stb_speed")
-                while stb_speed is None:
-                    await asyncio.sleep(0.001 * (10 ** counter))
-                    stb_speed = redis_connection.get(f"{self.name}-stb_speed")
-                    counter = counter + 1
-                    if counter > 2:
-                        logger.error("read training speed timeout.")
-                        return
+                stb_speed = fetch_with_timeout(redis_connection, f"{self.name}-stb_speed", 1000)
                 self.speed_list[i] = float(str(stb_speed.decode("utf-8")))
             except Exception as e:
-                logger.error(str(e))
+                logger.error("Failed to read training metrics from redis:", str(e))
 
         coroutine_list = []
         for i in range(self.resources.worker.num_worker):
