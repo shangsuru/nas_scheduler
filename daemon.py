@@ -32,8 +32,8 @@ async def main():
         scheduler = DRFScheduler(cluster)
     else:
         logger.error(f'Scheduler {config.JOB_SCHEDULER} not found.')
-    Statsor.scheduler = scheduler
-    Statsor.cluster = cluster
+
+    Statsor.set_cluster_and_scheduler(cluster, scheduler)
 
     await listen(scheduler)
 
