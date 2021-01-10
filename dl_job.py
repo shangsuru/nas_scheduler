@@ -1,22 +1,25 @@
+import asyncio
+import aiohttp
 import time
+from timer import Timer
 from datetime import datetime
 import os
-import sys
-import threading
-import subprocess
-import requests
-import ast
+import redis
 import shutil
 from munch import munchify
+from uuid import uuid1
+import concurrent
 
-import config
 import utils
+import yaml
 
 from k8s.api import KubeAPI
 from k8s.job import Job
 from log import logger
+from utils import fetch_with_timeout
 
 k8s_api = KubeAPI()
+redis_connection = redis.Redis()
 
 
 class DLJob():
@@ -101,6 +104,24 @@ class DLJob():
 
     def __repr__(self):
         return f'DLJob(name={self.name})'
+
+    @staticmethod
+    def create_from_config_file(uid: int , workload_id: int , working_directory: str,
+                        config_file: str):
+        """Creates a DLJob by reading its configuration from a yaml file.
+        Args:
+            uid: integer that uniquely identifies the DL job
+            workload_id: unique index for the job. Useful for identifying the
+                job characteristic in the future.
+            working_directory: working directory of the job
+            config_file: yaml file containing the job configuration
+        """
+        with open(config_file, "r") as f:
+            job_config = yaml.full_load(f)
+        job = DLJob(uuid1().int % 99999, job_config['metadata']['tag'], working_directory, job_config)
+        job.arrival_slot = Timer.get_clock()
+        job.arrival_time = time.time()
+        return job
 
     def set_ps_placement(self, ps_placement):
         """Setting the placement of parameter servers.
@@ -234,7 +255,7 @@ class DLJob():
 
         return jobs
 
-    def _read_data(self):
+    async def _read_data(self):
         """Read training data from localhost, otherwise from HDFS.
         A thread is created for each worker and tries to load the data.
         """
@@ -242,7 +263,7 @@ class DLJob():
             return
         if self.data.hdfs_data is None or self.data.hdfs_data == '':
             raise ValueError('data is not mounted from localhost and hdfs_data is not specified')
-        thread_list = []
+        proc_list = []
         for i in range(self.resources.worker.num_worker):
             node = self.worker_placement[i]
 
@@ -252,14 +273,11 @@ class DLJob():
                 local_file = self.worker_mount_dirs[i] + fn
                 # force copy even exist: some file may be broken due to interruption
                 cmd = f'ssh {node} "/usr/local/hadoop/bin/hadoop fs -copyToLocal -f {data} {local_file}"'
-                thread_train = threading.Thread(target=(lambda cmd=cmd: os.system(cmd)), args=())
-                thread_train.start()
-                thread_list.append(thread_train)
+                proc_list.append(asyncio.create_task(asyncio.create_subprocess_shell(cmd)))
 
-        for thread in thread_list:
-            thread.join()
+        await asyncio.gather(*proc_list)
 
-    def _read_progress_stats(self):
+    async def _read_progress_stats(self):
         """Get the job progress from each worker.
         """
         progress_fn = 'progress.txt'
@@ -267,85 +285,50 @@ class DLJob():
         # create a new one each time, since the number of workers will change, hence the size of progress list
         self.progress_list = [(0, 0) for i in range(self.resources.worker.num_worker)]
         self.val_loss_list = [(0, 0) for i in range(self.resources.worker.num_worker)]
-        thread_list = []
+
+        async def run(i):
+            try:
+                progress_epoch, progress_batch, val_loss = await asyncio.gather(
+                    fetch_with_timeout(redis_connection, f"{self.name}-progress_epoch", 1000), 
+                    fetch_with_timeout(redis_connection, f"{self.name}-progress_batch", 1000), 
+                    fetch_with_timeout(redis_connection, f"{self.name}-val_loss", 1000)
+                )
+
+                self.progress_list[i] = (progress_epoch, progress_batch)
+                self.val_loss_list[i] = val_loss
+            except Exception as e:
+                logger.error("Failed to read training metrics from redis:", str(e))
+
+        coroutine_list = []
         for i in range(self.resources.worker.num_worker):
-            node = self.worker_placement[i]
-            local_file = os.path.join(self.worker_mount_dirs[i], progress_fn)
-            cmd = f'ssh {node} "cat {local_file}"'
+            coroutine_list.append(run(i))
+        
+        await asyncio.gather(*coroutine_list)
 
-            def run(self, cmd, i):
-                try:
-                    output = subprocess.check_output(cmd, shell=True).decode('utf-8')
-                    counter = 0
-                    while output == '' or output is None:
-                        output = subprocess.check_output(cmd, shell=True)
-                        time.sleep(0.001 * (10 ** counter))
-                        counter = counter + 1
-                        if counter > 2:
-                            break
-                    if output is not None and output != '':
-                        # should not be empty, even no progress, there should be initialization values written in files.
-                        stat_dict = ast.literal_eval(output.replace('\n', ''))
-                        if "progress" in stat_dict and "val-loss" in stat_dict:
-                            self.progress_list[i] = stat_dict["progress"]
-
-                            # it is a list of (epoch, loss)
-                            self.val_loss_list[i] = stat_dict["val-loss"]
-                        else:
-                            logger.info("progress output does not have progress or val-loss value")
-                    else:
-                        logger.info("the progress output is empty.")
-                except Exception as e:
-                    logger.error(str(e))
-
-            thread = threading.Thread(target=run, args=(self, cmd, i))
-            thread.start()
-            thread_list.append(thread)
-        for thread in thread_list:
-            thread.join()
-
-    def get_training_progress_stats(self):
-        self._read_progress_stats()
+    async def get_training_progress_stats(self):
+        await self._read_progress_stats()
         return (list(self.progress_list), list(self.val_loss_list))
 
-    def _read_training_speed(self):
+    async def _read_training_speed(self):
         """Get the job training speed from each worker
         """
-        speed_fn = 'speed.txt'
         self.speed_list = [0 for i in range(self.resources.worker.num_worker)]
-        thread_list = []
+
+        async def run(i):
+            try:
+                stb_speed = await fetch_with_timeout(redis_connection, f"{self.name}-stb_speed", 1000)
+                self.speed_list[i] = float(str(stb_speed.decode("utf-8")))
+            except Exception as e:
+                logger.error("Failed to read training metrics from redis:", str(e))
+
+        coroutine_list = []
         for i in range(self.resources.worker.num_worker):
-            node = self.worker_placement[i]
-            local_file = os.path.join(self.worker_mount_dirs[i], speed_fn)
+            coroutine_list.append(run(i))
+        
+        await asyncio.gather(*coroutine_list)
 
-            cmd = f'ssh {node} "cat {local_file}"'
-
-            def run(self, cmd, i):
-                try:
-                    output = subprocess.check_output(cmd, shell=True)
-
-                    # the other side is opening and writing the file, try again
-                    counter = 0
-                    while output == '' or output is None:
-                        output = subprocess.check_output(cmd, shell=True)
-                        time.sleep(0.001 * (10 ** counter))
-                        counter = counter + 1
-                        if counter > 2:
-                            logger.error('read training speed timeout.')
-                            return
-                    stb_speed = float(output.decode("utf-8").replace('\n', '').split(' ')[1])
-                    self.speed_list[i] = float('%.3f' % stb_speed)
-                except Exception as e:
-                    logger.error(str(e))
-
-            thread = threading.Thread(target=run, args=(self, cmd, i))
-            thread.start()
-            thread_list.append(thread)
-        for thread in thread_list:
-            thread.join()
-
-    def get_training_speed(self):
-        self._read_training_speed()
+    async def get_training_speed(self):
+        await self._read_training_speed()
         return list(self.speed_list)
 
     def __get_pods_names(self):
@@ -364,7 +347,7 @@ class DLJob():
             elif 'worker' in pod_name:
                 self.worker_pods.append(pod_name)
 
-    def _read_metrics(self):
+    async def _read_metrics(self):
         """Get the metrics of the pods for the job
         """
         self.__get_pods_names()
@@ -384,9 +367,10 @@ class DLJob():
             for metric_key in metric_keys:
                 url = f'http://{heapster_cluster_ip}/api/v1/model/namespaces/default/pods/{pod}/metrics/{metric_key}'
                 try:
-                    output = requests.get(url, verify=False).json()
-                    # get latest value, maybe empty since heapster update metrics per minute
-                    metric_value = int(output['metrics'][-1]['value'])
+                    async with aiohttp.ClientSession as session:
+                        output = await session.get(url).json()
+                        # get latest value, maybe empty since heapster update metrics per minute
+                        metric_value = int(output['metrics'][-1]['value'])
                 except:
                     # print "ERROR when requesting pod metrics!"
                     metric_value = 0
@@ -396,13 +380,13 @@ class DLJob():
             else:
                 self.worker_metrics.append(pod_metrics)
 
-    def get_metrics(self):
+    async def get_metrics(self):
         """Get job metrics
         """
-        self._read_metrics()
+        await self._read_metrics()
         return list(self.ps_metrics), list(self.worker_metrics)
 
-    def start(self):
+    async def start(self):
         """Start the job in k8s, with these steps:
             - Creating job directory
             - Mounting data on ps and workers
@@ -423,13 +407,13 @@ class DLJob():
         self.running_tasks = self._create_jobs()
 
         # prepare data
-        self._read_data()
+        await self._read_data()
 
         # start pods in k8s. equivalent to microk8s kubectl create -f jobs.yaml
         for job in self.running_tasks:
             k8s_api.submit_job(job.k8s_job_obj)
 
-    def delete(self, del_all=False):
+    async def delete(self, del_all=False):
         """Delete the job.
         
         Args:
@@ -437,41 +421,40 @@ class DLJob():
         """
 
         # shutdown job in k8s
-        thread_list = []
-        for task in self.running_tasks:
-            # TODO: self.name for k8s task name? maybe wrong?
-            thread = threading.Thread(target=(lambda name=task.uname: k8s_api.delete_job(name)), args=())
-            thread.start()
-            thread_list.append(thread)
+        executor = concurrent.futures.ThreadPoolExecutor()
+        loop = asyncio.get_event_loop()
+        # TODO: self.name for k8s task name? maybe wrong?
+        blocking_tasks = [
+            loop.run_in_executor(executor, k8s_api.delete_job, task.uname)
+            for task in self.running_tasks
+        ]
 
-        for thread in thread_list:
-            thread.join()
+        await asyncio.wait(blocking_tasks)
 
+        blocking_tasks = []
         # remove mounted dirs on hosts
         if self.worker_mount_dirs and del_all:
-            thread_list = []
             for i in range(self.resources.worker.num_worker):
                 node = self.worker_placement[i]
                 worker_mount_dir = self.worker_mount_dirs[i]
                 cmd = f'timeout 10 ssh {node} "rm -r {worker_mount_dir}"'
-                thread = threading.Thread(target=(lambda cmd=cmd: os.system(cmd)), args=())
-                thread.start()
-                thread_list.append(thread)
+                blocking_tasks.append(
+                    loop.run_in_executor(executor, os.system, cmd)
+                )
 
             for i in range(self.resources.ps.num_ps):
                 node = self.ps_placement[i]
                 ps_mount_dir = self.ps_mount_dirs[i]
                 cmd = f'timeout 10 ssh {node} "rm -r {ps_mount_dir}"'
-                thread = threading.Thread(target=(lambda cmd=cmd: os.system(cmd)), args=())
-                thread.start()
-                thread_list.append(thread)
+                blocking_tasks.append(
+                    loop.run_in_executor(executor, os.system, cmd)
+                )
 
-            for thread in thread_list:
-                thread.join()
+            await asyncio.wait(blocking_tasks)
 
             # delete job working dir
             shutil.rmtree(self.dir)
-
+            
     def get_total_required_resources(self):
         """Returns: dict containing the required amount of resources to host this job."""
         # if we use the dist_strategy ps we also need to count the resources required by the parameter servers

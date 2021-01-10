@@ -1,7 +1,7 @@
 import os
 import argparse
 import logging
-logging.basicConfig(filename="./data/training.log", filemode="w", level=logging.DEBUG)
+logging.basicConfig(filename="/data/training.log", filemode="w", level=logging.DEBUG)
 logging.getLogger().addHandler(logging.StreamHandler())
 
 from common import find_mxnet, data, fit

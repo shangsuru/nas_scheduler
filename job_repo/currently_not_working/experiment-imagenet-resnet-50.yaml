@@ -1,16 +1,17 @@
 metadata:
-  name: experiment-mnist
-  modelname: mlp
+  name: experiment-imagenet
+  modelname: resnet-50
   batch_size: 32
   scale_bs: True
-  num_examples: 60000
+  num_examples: 1281167
   dist_strategy: 'ps'
+  tag: 0
 
 envs:
   kv_store_big_array_bound: '1000000'
   kv_store: dist_sync
-  ps_verbose:
-  prog_cmd: python3 train_mnist.py --network mlp --gpus 0
+  ps_verbose: 
+  prog_cmd: python3 train_imagenet.py --network resnet --num-layers 50 --disp-batches 5 --num-epochs 100 --data-train /data/imagenet-train.rec --gpus 0 --kv-store dist_sync
 
 resources:
   ps:

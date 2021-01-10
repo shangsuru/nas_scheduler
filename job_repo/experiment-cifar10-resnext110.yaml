@@ -5,6 +5,7 @@ metadata:
   scale_bs: True
   num_examples: 50000
   dist_strategy: 'ps'
+  tag: 0
 
 envs:
   kv_store_big_array_bound: '1000000'
@@ -26,7 +27,7 @@ resources:
     worker_bw : 0
 
 container:
-  image: localhost:5000/k8s-mxnet-gpu
+  image: localhost:5000/k8s-mxnet-gpu-bp
   init_script: /init.sh
 
 data:

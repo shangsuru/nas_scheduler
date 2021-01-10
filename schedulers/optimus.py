@@ -8,7 +8,6 @@ from scipy.optimize import curve_fit
 import random
 
 import config
-from communication import hub, Payload
 from schedulers.scheduler_base import SchedulerBase
 from allocators.default_allocator import DefaultAllocator
 
@@ -355,15 +354,11 @@ class OptimusEstimator():
 
 
 class OptimusScheduler(SchedulerBase):
-    def __init__(self, cluster, timer):
-        """
-        Args:
-            timer (Timer): timer instance
-        """
-        super().__init__(cluster, timer)
+    def __init__(self, cluster):
+        super().__init__(cluster)
         self.estimator = OptimusEstimator(cluster)
         self.allocator = DefaultAllocator(cluster)
-        self.start()
+        self.name = "optimus_scheduler"
 
     def __del__(self):
         super().__del__()
@@ -435,7 +430,7 @@ class OptimusScheduler(SchedulerBase):
 
         # first estimate speed
         test_tic = time.time()
-        self.estimator.existing_jobs = self.uncompleted_jobs + self.completed_jobs
+        self.estimator.existing_jobs = list(self.uncompleted_jobs) + list(self.completed_jobs)
         self.estimator.test_speed(new_jobs)
         logger.debug(f'Finish testing speed for new jobs.')
         test_toc = time.time()

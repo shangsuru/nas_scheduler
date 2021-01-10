@@ -3,11 +3,13 @@ import logging
 import time
 import subprocess
 import sys
+import redis
 
 
 logging.basicConfig(level=logging.INFO,	format='%(asctime)s.%(msecs)03d %(module)s %(levelname)s: %(message)s', datefmt="%Y-%m-%d %H:%M:%S")
 ROLE = os.getenv("ROLE")
 WORK_DIR = os.getenv("WORK_DIR")
+JOB_NAME = os.getenv("JOB_NAME")
 
 # read the log file and monitor the training progress
 # give log file name
@@ -15,15 +17,15 @@ WORK_DIR = os.getenv("WORK_DIR")
 # run the function in a separate thread
 
 
-def update_speed(logfile, recordfile):
+def update_speed(logfile):
     filesize = 0
     line_number = 0
 
-    # logfile = 'training.log'
-    # recordfile = 'speed.txt'	# change to the correct path ....../data/mxnet-data/......
+    redis_connection = redis.Redis()
 
-    with open(recordfile, 'w') as fh:
-        fh.write('0 0\n')
+    redis_connection.set("{}-avg_speed".format(JOB_NAME), 0)
+    redis_connection.set("{}-stb_speed".format(JOB_NAME), 0)
+
     logging.info('starting speed monitor to track average training speed ...')
 
     speed_list = []
@@ -74,8 +76,8 @@ def update_speed(logfile, recordfile):
 
         logging.info('Stable Training Speed: ' + str(stb_speed))
 
-        with open(recordfile, 'w') as fh:
-            fh.write(str(avg_speed) + ' ' + str(stb_speed) + '\n')
+        redis_connection.set("{}-avg_speed".format(JOB_NAME), avg_speed)
+        redis_connection.set("{}-stb_speed".format(JOB_NAME), stb_speed)
 
 
 def main():
@@ -83,7 +85,7 @@ def main():
     #logfile = WORK_DIR + 'training.log'
     recordfile =  WORK_DIR + 'speed.txt'
     if ROLE == 'worker':
-        update_speed(logfile, recordfile)
+        update_speed(logfile)
 
 
 if __name__ == '__main__':
