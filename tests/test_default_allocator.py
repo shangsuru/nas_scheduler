@@ -56,20 +56,19 @@ def test_one_job_per_node():
     """
 
     jobs = get_jobs_list(amount=3)  # get 3 jobs from job repo
-    setup_config(cpu_per_node=8, mem_per_node=8, bw_per_node=8, gpu_per_node=4, num_nodes=3)  # set the cluster config
+    setup_config(cpu_per_node=10, mem_per_node=14, bw_per_node=18, gpu_per_node=14, num_nodes=3)  # set the cluster config
 
     # set ps parameters and worker parameters such that one job completely fills one node
     for i in range(len(jobs)):
         jobs[i].resources.ps.num_ps = 2
-        jobs[i].resources.ps.ps_cpu = 2
+        jobs[i].resources.ps.ps_cpu = 1
         jobs[i].resources.ps.ps_mem = 2
-        jobs[i].resources.ps.ps_bw = 2
+        jobs[i].resources.ps.ps_bw = 3
         jobs[i].resources.worker.num_worker = 2
-        jobs[i].resources.worker.worker_cpu = 2
-        jobs[i].resources.worker.worker_mem = 2
-        jobs[i].resources.worker.worker_bw = 2
-        jobs[i].resources.worker.worker_gpu = 2
-        # sanity check: num_ps*ps_cpu+num_worker*worker_cpu == 8 == config.CPU_PER_NODE, same goes for mem, bw and gpu
+        jobs[i].resources.worker.worker_cpu = 4
+        jobs[i].resources.worker.worker_mem = 5
+        jobs[i].resources.worker.worker_bw = 6
+        jobs[i].resources.worker.worker_gpu = 7
 
     # instantiate cluster and DefaultAllocator
     cluster1, da1 = setup_cluster_and_allocator()

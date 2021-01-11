@@ -32,9 +32,8 @@ async def main():
     elif config.JOB_SCHEDULER == "drf":
         scheduler = DRFScheduler(cluster)
     else:
-        logger.error(f"Scheduler {config.JOB_SCHEDULER} not found.")
-    Statsor.scheduler = scheduler
-    Statsor.cluster = cluster
+        logger.error(f'Scheduler {config.JOB_SCHEDULER} not found.')
+    Statsor.set_cluster_and_scheduler(cluster, scheduler)
 
     await listen(scheduler)
 
@@ -49,7 +48,7 @@ async def setup_redis_connection():
         channel (aioredis.Channel): the channel is the object from which all
             messages sent by the client are received
     """
-    redis_connection = await aioredis.create_redis_pool("redis://localhost")
+    redis_connection = await aioredis.create_redis_pool(config.REDIS_DAEMON_SIDE)
     channel = (await redis_connection.psubscribe("client"))[0]
     return redis_connection, channel
 

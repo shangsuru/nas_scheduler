@@ -15,6 +15,19 @@ class Statsor():
     end = None
 
     @staticmethod
+    def set_cluster_and_scheduler(cluster, scheduler):
+        """
+        This method is called by daemon.py to give Statsor
+        references to the scheduler and cluster objects.
+
+        Args:
+            cluster (Cluster): used by statsor to have access to the resource utilization metrics
+            scheduler (Scheduler): used by statsor to have access to submitted and completted jobs
+        """
+        Statsor.cluster = cluster
+        Statsor.scheduler = scheduler
+
+    @staticmethod
     async def stats(t):
         logger.info(f'time slot: {t}')
         num_submit_jobs = len(Statsor.scheduler.uncompleted_jobs) + len(Statsor.scheduler.completed_jobs)
