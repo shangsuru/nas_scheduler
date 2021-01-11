@@ -25,6 +25,7 @@ from docopt import docopt
 import json
 import redis
 from tabulate import tabulate
+from tests.end_to_end import EndToEndTest
 
 
 class Client:
@@ -134,7 +135,7 @@ def main():
         job_id = args["<uid>"]
         client.status(job_id)
     elif args["test"]:
-        pass # TODO
+        EndToEndTest()
     elif args["simulate"]:
         pass
 
