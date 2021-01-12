@@ -21,26 +21,22 @@ Options:
 
 """
 
-from docopt import docopt
 import json
 import redis
+from docopt import docopt
 from tabulate import tabulate
 from tests.end_to_end import EndToEndTest
 
 
 class Client:
     def __init__(self):
-        """
-        Initializes a client object. Sets up connection to redis server and subscribes to the daemon channel.
-        """
+        """Initializes a client object. Sets up connection to redis server and subscribes to the daemon channel."""
         self.redis_connection = redis.Redis()
         self.channel = self.redis_connection.pubsub()
         self.channel.psubscribe("daemon")
 
     def listen(self):
-        """
-        listens for a response from the daemon and returns the data
-        """
+        """Listens for a response from the daemon and returns the data"""
         for msg in self.channel.listen():
             if msg["type"] != "psubscribe":
                 payload = json.loads(msg["data"])
@@ -49,49 +45,36 @@ class Client:
         return data
 
     def submit(self, jobfile):
-        """
-        Sends a submit message to the daemon
+        """Sends a submit message to the daemon
 
         Args:
             jobfile (str): yaml file containing the job data
         """
-        self.redis_connection.publish(
-            "client", json.dumps({"command": "submit", "args": [jobfile]})
-        )
+        self.redis_connection.publish("client", json.dumps({"command": "submit", "args": [jobfile]}))
         print(self.listen())
 
     def delete(self, uid):
-        """
-        Sends a delete message to the daemon
+        """Sends a delete message to the daemon
 
         Args:
             uid (int): uid of the job to be deleted
         """
-        self.redis_connection.publish(
-            "client", json.dumps({"command": "delete", "args": uid})
-        )
+        self.redis_connection.publish("client", json.dumps({"command": "delete", "args": uid}))
         print(self.listen())
 
     def top(self):
-        """
-        Sends a top message to the daemon and prints a single view for all the jobs running on the cluster
-        """
-        self.redis_connection.publish(
-            "client", json.dumps({"command": "top", "args": None})
-        )
+        """Sends a top message to the daemon and prints a single view for all the jobs running on the cluster"""
+        self.redis_connection.publish("client", json.dumps({"command": "top", "args": None}))
         headers = ["id", "name", "total progress/total epochs", "sum_speed(batches/second)"]
         print(tabulate(self.listen(), headers=headers))
 
     def status(self, uid):
-        """
-        Sends a status message to the daemon and prints in-depth metrics of the job with the given id
+        """Sends a status message to the daemon and prints in-depth metrics of the job with the given id
 
         Args:
             uid (int): uid of the job
         """
-        self.redis_connection.publish(
-            "client", json.dumps({"command": "status", "args": uid})
-        )
+        self.redis_connection.publish("client", json.dumps({"command": "status", "args": uid}))
         data = self.listen()
         if data[0][2] == "ps":
             metrics = [
@@ -119,6 +102,7 @@ class Client:
                 "worker cpu usage diff",
             ]
             print(tabulate(data, headers=metrics))
+
 
 def main():
     args = docopt(__doc__, version="Client 1.0")

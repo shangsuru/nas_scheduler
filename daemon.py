@@ -1,19 +1,19 @@
-import config
-from log import logger
-from cluster import Cluster
-from schedulers.optimus import OptimusScheduler
-from schedulers.fifo import FIFOScheduler
-from schedulers.drf import DRFScheduler
-from schedulers.scheduler_base import SchedulerBase
-from k8s.api import KubeAPI
-from timer import Timer
-from statsor import Statsor
-from progressor import Progressor
-import asyncio
 import aioredis
+import asyncio
+import config
 import json
 import os
+from cluster import Cluster
 from dl_job import DLJob
+from k8s.api import KubeAPI
+from log import logger
+from progressor import Progressor
+from schedulers.drf import DRFScheduler
+from schedulers.fifo import FIFOScheduler
+from schedulers.optimus import OptimusScheduler
+from schedulers.scheduler_base import SchedulerBase
+from statsor import Statsor
+from timer import Timer
 
 
 k8s_api = KubeAPI()
@@ -21,7 +21,6 @@ k8s_api = KubeAPI()
 
 async def main():
     k8s_api.clear_jobs()
-
     cluster = Cluster()
 
     # start the modules/workers
@@ -32,14 +31,15 @@ async def main():
     elif config.JOB_SCHEDULER == "drf":
         scheduler = DRFScheduler(cluster)
     else:
-        logger.error(f'Scheduler {config.JOB_SCHEDULER} not found.')
+        logger.error(f"Scheduler {config.JOB_SCHEDULER} not found.")
     Statsor.set_cluster_and_scheduler(cluster, scheduler)
 
     await listen(scheduler)
 
 
 async def setup_redis_connection():
-    """Creates a a connection to the redis database and subscribes to
+    """
+    Creates a a connection to the redis database and subscribes to
     the client channel.
 
     Returns:
@@ -59,7 +59,6 @@ async def listen(scheduler: SchedulerBase):
         scheduler (SchedulerBase): Scheduler instance managing and scheduling
             jobs submitted by client
     """
-
     redis_connection, channel = await setup_redis_connection()
 
     # listen for messages
@@ -90,9 +89,7 @@ async def listen(scheduler: SchedulerBase):
                         deleted = True
                         break
                 if deleted:
-                    await send(
-                        redis_connection, "delete", "job was deleted successfully"
-                    )
+                    await send(redis_connection, "delete", "job was deleted successfully")
                 else:
                     await send(
                         redis_connection,
@@ -175,7 +172,8 @@ async def listen(scheduler: SchedulerBase):
 
 
 async def send(redis_connection, response, args: list = None):
-    """Sends given response with given args from daemon back to client
+    """
+    Sends given response with given args from daemon back to client
 
     Args:
     redis_connection (aioredis.ConnectionsPool): Redis connection instance which the redis server
@@ -184,13 +182,12 @@ async def send(redis_connection, response, args: list = None):
     args (list): Arguments associated with response, if None no arguments
             are given to the command
     """
-    await redis_connection.publish(
-        "daemon", json.dumps({"response": response, "args": args})
-    )
+    await redis_connection.publish("daemon", json.dumps({"response": response, "args": args}))
 
 
 def _get_command_args(message: str):  # -> tuple[str, str]
-    """Parses received message from client into command and arguments part
+    """
+    Parses received message from client into command and arguments part
     Args:
         messsage (str): Message received from client
     Returns:

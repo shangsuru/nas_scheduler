@@ -1,9 +1,9 @@
-import functools
 import asyncio
+import functools
 
 
 def list_to_str(listofstr):
-    return ','.join(listofstr)
+    return ",".join(listofstr)
 
 
 class objectview(object):
@@ -12,6 +12,7 @@ class objectview(object):
             self.__dict__ = {}
         else:
             self.__dict__ = d
+
 
 def update_dict_keys(input, attr_map):
     new = {}
@@ -25,21 +26,24 @@ def update_dict_keys(input, attr_map):
         new[attr_map.get(k, k)] = v
     return new
 
+
 def rgetattr(obj, attr, *args):
     def _getattr(obj, attr):
         return getattr(obj, attr, *args)
 
-    return functools.reduce(_getattr, [obj] + attr.split('.'))
+    return functools.reduce(_getattr, [obj] + attr.split("."))
 
 
 def dict_to_str(dict_obj):
-    """Converts dict object to a string of key=values separated by commas
     """
-    return ', '.join(f'{key}={val}' for (key, val) in dict_obj.items())
+    Converts dict object to a string of key=values separated by commas
+    """
+    return ", ".join(f"{key}={val}" for (key, val) in dict_obj.items())
 
 
-async def fetch_with_timeout(redis_connection, key, timeout, num_retries = 1):
-    """Used when it is required to fetch a key from redis with a timeout
+async def fetch_with_timeout(redis_connection, key, timeout, num_retries=1):
+    """
+    Used when it is required to fetch a key from redis with a timeout
 
     Args:
         redis_connection: connection to the redis database
@@ -55,5 +59,5 @@ async def fetch_with_timeout(redis_connection, key, timeout, num_retries = 1):
         await asyncio.sleep(timeout)
         value = redis_connection.get(key)
         if value:
-            return value   
+            return value
     raise TimeoutError

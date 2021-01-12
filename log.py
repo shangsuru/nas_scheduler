@@ -1,15 +1,14 @@
-import logging
-
 import config
+import logging
 
 
 class LogFormatter(logging.Formatter):
-    err_fmt = '%(asctime)s %(levelname)s: [%(filename)s::%(funcName)s()::%(lineno)s] %(message)s'
-    dbg_fmt = '%(asctime)s %(levelname)s: [%(filename)s::%(funcName)s()::%(lineno)s] %(message)s'
-    info_fmt = '%(asctime)s %(levelname)s: [%(filename)s] %(message)s'
+    err_fmt = "%(asctime)s %(levelname)s: [%(filename)s::%(funcName)s()::%(lineno)s] %(message)s"
+    dbg_fmt = "%(asctime)s %(levelname)s: [%(filename)s::%(funcName)s()::%(lineno)s] %(message)s"
+    info_fmt = "%(asctime)s %(levelname)s: [%(filename)s] %(message)s"
 
     def __init__(self):
-        super().__init__(fmt="%(levelno)d: %(msg)s", datefmt=None, style='%')
+        super().__init__(fmt="%(levelno)d: %(msg)s", datefmt=None, style="%")
 
     def format(self, record):
         # Save the original format configured by the user
@@ -35,10 +34,10 @@ class LogFormatter(logging.Formatter):
         return result
 
 
-def get_logger(name='logger_obj', level='INFO', mode='w'):
+def get_logger(name="logger_obj", level="INFO", mode="w"):
     logger_obj = logging.getLogger(name)
 
-    fh = logging.FileHandler(name + '.log', mode)
+    fh = logging.FileHandler(name + ".log", mode)
     ch = logging.StreamHandler()
 
     if level == "INFO":
