@@ -1,29 +1,29 @@
-import asyncio
 import aiohttp
-import time
-from timer import Timer
-from datetime import datetime
+import asyncio
+import concurrent
 import os
 import redis
 import shutil
-from munch import munchify
-from uuid import uuid1
-import concurrent
-
+import time
 import utils
 import yaml
-
+from datetime import datetime
 from k8s.api import KubeAPI
 from k8s.job import Job
+from munch import munchify
 from log import logger
+from timer import Timer
 from utils import fetch_with_timeout
+from uuid import uuid1
+
 
 k8s_api = KubeAPI()
 redis_connection = redis.Redis()
 
 
 class DLJob:
-    """Job class defines the structure of a DL training job.
+    """
+    Job class defines the structure of a DL training job.
 
     Attributes:
         uid (int): job unique id -- incremental style
@@ -32,13 +32,13 @@ class DLJob:
         name (str): job name as in '{uid}-{name}-{model_name}'. e.g. '1-measurement-imagenet-vgg16'
         timestamp (str): job creation time as in '%Y-%m-%d-%H:%M:%S'
         dir (str): job working directory as in '{dir_prefix}/{name}-{timestamp}/}'
-
     """
 
     ps_placement: None
 
     def __init__(self, uid, tag, dir_prefix, conf):
-        """Initializes a job object.
+        """
+        Initializes a job object.
 
         Args:
             uid (int): job unique id -- incremental style
@@ -111,7 +111,8 @@ class DLJob:
 
     @staticmethod
     def create_from_config_file(working_directory, config_file):
-        """Creates a DLJob by reading its configuration from a yaml file.
+        """
+        Creates a DLJob by reading its configuration from a yaml file.
         Args:
             working_directory (str): working directory of the job
             config_file (str): yaml file containing the job configuration
@@ -124,7 +125,8 @@ class DLJob:
         return job
 
     def set_ps_placement(self, ps_placement):
-        """Setting the placement of parameter servers.
+        """
+        Setting the placement of parameter servers.
 
         Args:
             ps_placement (list): list of parameter servers ip addresses
@@ -138,7 +140,8 @@ class DLJob:
             raise TypeError("ps_placement is not a list")
 
     def set_worker_placement(self, worker_placement):
-        """Setting the placement of workers.
+        """
+        Setting the placement of workers.
 
         Args:
             worker_placement (list): list of workers ip addresses
@@ -152,7 +155,8 @@ class DLJob:
             raise TypeError("worker_placement is not a list")
 
     def __set_mount_dirs(self, type, host_workdir_prefix):
-        """Setting the directories on hosts to be mounted on containers
+        """
+        Setting the directories on hosts to be mounted on containers
 
         Args:
             type (str): 'ps' or 'worker'
@@ -178,7 +182,8 @@ class DLJob:
         return mount_dirs
 
     def __set_batch_size(self):
-        """Sets the batch size for training job.
+        """
+        Sets the batch size for training job.
         The batch size of each worker for sync training may be different
         """
         if self.envs.kv_store == "dist_async":
@@ -252,7 +257,8 @@ class DLJob:
         return jobs
 
     async def _read_data(self):
-        """Read training data from localhost, otherwise from HDFS.
+        """
+        Read training data from localhost, otherwise from HDFS.
         A thread is created for each worker and tries to load the data.
         """
         if self.data.data_mounted:
@@ -326,7 +332,8 @@ class DLJob:
         return list(self.speed_list)
 
     def __get_pods_names(self):
-        """Get the names of the pods belonging to the task
+        """
+        Get the names of the pods belonging to the task
 
         NAME                                    READY     STATUS    RESTARTS   AGE
         1-measurement-imagenet-ps-0-mzv2z       1/1       Running   0          1m
@@ -379,7 +386,8 @@ class DLJob:
         return list(self.ps_metrics), list(self.worker_metrics)
 
     async def start(self):
-        """Start the job in k8s, with these steps:
+        """
+        Start the job in k8s, with these steps:
         - Creating job directory
         - Mounting data on ps and workers
         - Create the YAML file

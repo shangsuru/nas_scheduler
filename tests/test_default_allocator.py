@@ -1,12 +1,12 @@
-import pytest
-from cluster import Cluster
-from tests.end_to_end import prepare_job_repo
-from allocators.default_allocator import DefaultAllocator
-from pathlib import Path
-import yaml
 import config
-from dl_job import DLJob
 import os
+import pytest
+import yaml
+from allocators.default_allocator import DefaultAllocator
+from cluster import Cluster
+from dl_job import DLJob
+from pathlib import Path
+from tests.end_to_end import prepare_job_repo
 
 
 def setup_cluster_and_allocator():
@@ -48,7 +48,8 @@ def get_jobs_list(amount):
 
 
 def test_one_job_per_node():
-    """In this testcase each of the 3 jobs perfectly fits on one node,
+    """
+    In this testcase each of the 3 jobs perfectly fits on one node,
     leaving no more resources on the node. We will verify, that:
     1. each job allocates the correct amount of resources
     2. each job is allocated on the correct node (on the first node in the sorted_nodes_list)
@@ -104,7 +105,8 @@ def test_one_job_per_node():
 
 
 def test_one_jobs_fills_all_nodes():
-    """In this testcase only the first job in the list of jobs should fit on the cluster.
+    """
+    In this testcase only the first job in the list of jobs should fit on the cluster.
     The other jobs should not be allocated. We will verify, that:
     1. the first allocates the correct amount of resources
     2. the individual workers and ps are allocated on the correct node (on the first node in the sorted_nodes_list)

@@ -1,13 +1,10 @@
 import abc
 import asyncio
 import time
-import threading
-from queue import PriorityQueue
-
 from allocators.default_allocator import DefaultAllocator
 from log import logger
-
 from progressor import Progressor
+from queue import PriorityQueue
 from statsor import Statsor
 from timer import Timer
 
@@ -80,7 +77,8 @@ class SchedulerBase(metaclass=abc.ABCMeta):
         await self._delete()
 
     async def __run(self, job, ps_placement, worker_placement):
-        """Run a given job with given ps and worker placements
+        """
+        Run a given job with given ps and worker placements
 
         Args:
             job (DLJob): job instance

@@ -16,9 +16,9 @@
 # under the License.
 
 import mxnet as mx
+import numpy as np
 import random
 from mxnet.io import DataBatch, DataIter
-import numpy as np
 
 
 def add_data_args(parser):

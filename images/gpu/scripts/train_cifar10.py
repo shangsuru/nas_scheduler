@@ -1,13 +1,10 @@
-import os
 import argparse
 import logging
+from common import data, fit
+
 
 logging.basicConfig(filename="/data/training.log", filemode="w", level=logging.INFO)
 logging.getLogger().addHandler(logging.StreamHandler())
-
-from common import data, fit
-from math import ceil
-import mxnet as mx
 
 
 if __name__ == "__main__":

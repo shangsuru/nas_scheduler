@@ -1,10 +1,7 @@
-import kubernetes
-from kubernetes import client, config
-from kubernetes.client import ApiClient
-
-import utils
 import config
-
+import kubernetes
+import utils
+from kubernetes import client, config
 from log import logger
 
 

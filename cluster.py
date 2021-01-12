@@ -20,7 +20,9 @@ class Cluster:
         self.node_used_gpu_list = [0 for i in range(len(config.NODE_LIST))]
 
     def _set_cluster_config(self):
-        """Sets the cluster details, such as nodes, memory, bandwidth and gpus."""
+        """
+        Sets the cluster details, such as nodes, memory, bandwidth and gpus.
+        """
         self.num_nodes = len(config.NODE_LIST)
         self.nodes = config.NODE_LIST
         cpu_per_node = config.CPU_PER_NODE
@@ -36,7 +38,8 @@ class Cluster:
         return self.nodes.index(node)
 
     def check_cluster_resource_full(self, cpu_req, mem_req, bw_req=0, gpu_req=0):
-        """Check whether cluster resources are sufficient.
+        """
+        Check whether cluster resources are sufficient.
 
         Args:
             cpu_req (int): number of cpus needed
@@ -57,7 +60,8 @@ class Cluster:
         )
 
     def check_node_resource_full(self, node_id, cpu_req, mem_req, bw_req=0, gpu_req=0, num=1):
-        """Check whether resources on a given node is full.
+        """
+        Check whether resources on a given node is full.
 
         Args:
             node_id (int): index of the target node
@@ -79,7 +83,8 @@ class Cluster:
         )
 
     def assign_resources(self, job, task_type, task_num, node_id):
-        """Assign available resources to a node for a given job.
+        """
+        Assign available resources to a node for a given job.
 
         Args:
             job (DLJob): Job instance
@@ -87,7 +92,6 @@ class Cluster:
             task_num (int): number of replicas for the task
             node_id (int): node index in the cluster
         """
-
         if task_type == "ps":
             self.node_used_cpu_list[node_id] += job.resources.ps.ps_cpu * task_num
             self.node_used_mem_list[node_id] += job.resources.ps.ps_mem * task_num
@@ -99,7 +103,8 @@ class Cluster:
             self.node_used_gpu_list[node_id] += job.resources.worker.worker_gpu * task_num
 
     def free_resources(self, job, task_type, task_num, node_id):
-        """Assign available resources to a node for a given job.
+        """
+        Assign available resources to a node for a given job.
 
         Args:
             job (DLJob): Job instance
@@ -119,7 +124,8 @@ class Cluster:
             self.node_used_gpu_list[node_id] -= job.resources.worker.worker_gpu * task_num
 
     def sort_nodes(self, resource):
-        """Sort nodes based on available resource.
+        """
+        Sort nodes based on available resource.
         Args:
             resource (str): name of the resource. e.g. gpu, cpu
         Returns:
@@ -137,7 +143,8 @@ class Cluster:
         return sorted_list
 
     def get_available_resources(self, node_index):
-        """Sort nodes based on available resource.
+        """
+        Sort nodes based on available resource.
         Args:
             node_index (str): index of the node
         Returns:

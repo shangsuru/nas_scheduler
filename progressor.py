@@ -1,7 +1,7 @@
 import asyncio
 import config
-from log import logger
 import time
+from log import logger
 from timer import Timer
 
 

@@ -1,9 +1,9 @@
 import aiofiles
 import config
-from log import logger
+import json
 import redis
 import time
-import json
+from log import logger
 from progressor import Progressor
 
 

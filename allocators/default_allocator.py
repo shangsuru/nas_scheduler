@@ -8,7 +8,8 @@ class DefaultAllocator(ResourceAllocator):
         super().__init__(cluster)
 
     def allocate_job(self, job):
-        """Allocate resources for the given job.
+        """
+        Allocate resources for the given job.
         Given the numbers of workers and parameter servers in a synchronous training job,
         the optimal worker/parameter server placement principle to achieve the maximal training speed
         for the job, in a cluster of homogeneous servers, is to use the smallest number of servers to
@@ -88,7 +89,8 @@ class DefaultAllocator(ResourceAllocator):
         return ps_nodes, worker_nodes
 
     def get_min_req_node_amount(self, job):
-        """Given a job, this method will return the amount of empty nodes required to host this job.
+        """
+        Given a job, this method will return the amount of empty nodes required to host this job.
         Args:
             job (DLJob): job to be allocated
         Returns:

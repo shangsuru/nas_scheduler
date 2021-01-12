@@ -1,8 +1,7 @@
-import os
 import logging
-import time
-import subprocess
+import os
 import sys
+import time
 
 
 logging.basicConfig(

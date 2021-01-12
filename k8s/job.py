@@ -1,9 +1,9 @@
-from kubernetes import client
 import yaml
-
 from .api import KubeAPI
 import config
+from kubernetes import client
 import utils
+
 
 k8s_api = KubeAPI()
 

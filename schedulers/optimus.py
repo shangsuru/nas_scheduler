@@ -1,17 +1,15 @@
-import time
+import config
 import sys
 import threading
-from queue import PriorityQueue
+import time
 import math
 import numpy as np
-from scipy.optimize import curve_fit
 import random
-
-import config
-from schedulers.scheduler_base import SchedulerBase
 from allocators.default_allocator import DefaultAllocator
-
 from log import logger
+from queue import PriorityQueue
+from schedulers.scheduler_base import SchedulerBase
+from scipy.optimize import curve_fit
 
 
 class OptimusEstimator:
@@ -24,7 +22,8 @@ class OptimusEstimator:
         self.exit_event.set()
 
     def _test_placement(self, jobs):
-        """Test training speed to get points for curve fitting
+        """
+        Test training speed to get points for curve fitting
 
         Args:
             jobs (list(DLJob)): list of jobs
@@ -402,9 +401,9 @@ class OptimusScheduler(SchedulerBase):
         self.estimator.set_exit_flag()
 
     def __update_util_queue(self, job, util_queue):
-        """compute utility
-        allocate 1 ps or 1 worker each time.
-        sometimes can allocate multiple ps or worker for optimization, to avoid stuck in local optimal.
+        """
+        Compute utility, allocate 1 ps or 1 worker each time.
+        Sometimes can allocate multiple ps or worker for optimization, to avoid stuck in local optimal.
 
         Args:
             job (DLJob): job instance

@@ -1,18 +1,19 @@
 """
 Train mnist, see more explanation at http://mxnet.io/tutorials/python/mnist.html
 """
-import os
 import argparse
+import gzip
 import logging
+import mxnet as mx
+import numpy as np
+import os
+import struct
+from common import find_mxnet, fit
+from common.util import download_file
+
 
 logging.basicConfig(filename="/data/training.log", filemode="w", level=logging.DEBUG)
 logging.getLogger().addHandler(logging.StreamHandler())
-
-from common import find_mxnet, fit
-from common.util import download_file
-import mxnet as mx
-import numpy as np
-import gzip, struct
 
 
 def read_data(label, image):

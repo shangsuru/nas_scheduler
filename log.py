@@ -1,6 +1,5 @@
-import logging
-
 import config
+import logging
 
 
 class LogFormatter(logging.Formatter):

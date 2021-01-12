@@ -1,9 +1,7 @@
 import config
 import queue
-from schedulers.scheduler_base import SchedulerBase
 from allocators.default_allocator import DefaultAllocator
-
-from log import logger
+from schedulers.scheduler_base import SchedulerBase
 
 
 class DRFScheduler(SchedulerBase):

@@ -1,8 +1,8 @@
-import os
 import logging
-import time
-import sys
+import os
 import redis
+import sys
+import time
 
 
 logging.basicConfig(

@@ -1,13 +1,12 @@
-import sys
-import time
-import random
-from pathlib import Path
-import threading
-
 import config
-from log import logger
-import redis
 import json
+import random
+import redis
+import sys
+import threading
+import time
+from log import logger
+from pathlib import Path
 
 
 def prepare_job_repo():
