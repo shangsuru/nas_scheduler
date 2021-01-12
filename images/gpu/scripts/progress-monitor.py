@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import redis
@@ -15,11 +16,11 @@ WORK_DIR = os.getenv("WORK_DIR")
 JOB_NAME = os.getenv("JOB_NAME")
 
 
-def update_progress(logfile, recordfile):
+def update_progress(logfile):
     filesize = 0
     line_number = 0
 
-    redis_connection = redis.Redis()
+    redis_connection = redis.Redis("130.83.143.241")
     keys = [
         "{}-progress".format(JOB_NAME),
         "{}-train_acc".format(JOB_NAME),
@@ -37,11 +38,11 @@ def update_progress(logfile, recordfile):
     # Epoch[1] Batch [70]	Speed: 1.08 samples/sec	accuracy=0.000000
     epoch = 0
     batch = 0
-    train_acc = []
-    train_loss = []
-    val_acc = []
-    val_loss = []
-    time_cost = []
+    train_acc = {}
+    train_loss = {}
+    val_acc = {}
+    val_loss = {}
+    time_cost = {}
     while True:
         time.sleep(10)
         try:
@@ -76,32 +77,34 @@ def update_progress(logfile, recordfile):
                     # train-acc
                     train_acc_index = line.find("Train-accuracy")
                     if train_acc_index > -1:
-                        train_acc.append((epoch, float(line[(line.find("=") + 1) :])))
+                        train_acc[epoch] = float(line[(line.find("=") + 1) :])
 
                     train_loss_index = line.find("Train-cross-entropy")
                     if train_loss_index > -1:
-                        train_loss.append((epoch, float(line[(line.find("=") + 1) :])))
+                        train_loss[epoch] = float(line[(line.find("=") + 1) :])
 
                     val_acc_index = line.find("Validation-accuracy")
                     if val_acc_index > -1:
-                        val_acc.append((epoch, float(line[(line.find("=") + 1) :])))
+                        val_acc[epoch] = float(line[(line.find("=") + 1) :])
 
                     val_loss_index = line.find("Validation-cross-entropy")
                     if val_loss_index > -1:
-                        val_loss.append((epoch, float(line[(line.find("=") + 1) :])))
+                        val_loss[epoch] = float(line[(line.find("=") + 1) :])
+
 
                     time_cost_index = line.find("Time cost")
                     if time_cost_index > -1:
-                        time_cost.append((epoch, float(line[(line.find("=") + 1) :])))
+                        time_cost[epoch] = float(line[(line.find("=") + 1) :])
+
 
         if len(time_cost) != 0:
             redis_connection.set("{}-progress_epoch".format(JOB_NAME), epoch)
             redis_connection.set("{}-progress_batch".format(JOB_NAME), batch)
-            redis_connection.set("{}-train-acc".format(JOB_NAME), train_acc)
-            redis_connection.set("{}-train-loss".format(JOB_NAME), train_loss)
-            redis_connection.set("{}-val-acc".format(JOB_NAME), val_acc)
-            redis_connection.set("{}-val-loss".format(JOB_NAME), val_loss)
-            redis_connection.set("{}-time-cost".format(JOB_NAME), sum(x[1] for x in time_cost) / len / (time_cost))
+            _set_dictionary(redis_connection, "{}-train-acc".format(JOB_NAME), train_acc)
+            _set_dictionary(redis_connection, "{}-train-loss".format(JOB_NAME), train_loss)
+            _set_dictionary(redis_connection, "{}-val-acc".format(JOB_NAME), val_acc)
+            _set_dictionary(redis_connection, "{}-val-loss".format(JOB_NAME), val_loss)
+            redis_connection.set("{}-time-cost".format(JOB_NAME), sum(time_cost.values()) / len(time_cost))
 
             logging.info(
                 "Progress: Epoch: "
@@ -119,6 +122,29 @@ def update_progress(logfile, recordfile):
                 + ", Time-cost: "
                 + str(time_cost)
             )
+
+def _set_dictionary(redis_connection, key, value):
+    """
+    Helper function to save a dictionary in redis
+
+    Args:
+        redis_connection: connection to the redis database
+        key (str): key for the value to be fetched from redis
+        value (dict): value for given key, which must be json-serializable
+    """
+    redis_connection.set(key, json.dumps(value))
+
+def _get_dictionary(redis_connection, key):
+    """
+    Helper function to get a dictionary from redis
+
+    Args:
+        redis_connection: connection to the redis database
+        key (str): key for the value to be fetched from redis
+    Returns:
+        value for given key, which is of type dictionary‚
+    """
+    return json.loads(redis_connection.get(key))
 
 
 def main():
