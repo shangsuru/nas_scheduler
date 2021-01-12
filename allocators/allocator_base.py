@@ -13,7 +13,7 @@ class ResourceAllocator(metaclass=abc.ABCMeta):
             self.cluster.free_resources(job, "ps", 1, self.cluster.get_node_index(node))
         for node in job.worker_placement:
             self.cluster.free_resources(job, "worker", 1, self.cluster.get_node_index(node))
-        logger.debug('freed up job resources')
+        logger.debug("freed up job resources")
 
     def allocate(self, jobs):
         """Allocate resources for the given jobs.

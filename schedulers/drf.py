@@ -39,9 +39,18 @@ class DRFScheduler(SchedulerBase):
                 self.cluster.used_bw += bw_req
                 self.cluster.used_gpu += gpu_req
                 # computes the job's share of its dominant resource (cpu/gpu) within the cluster
-                dom_share = (job.resources.worker.num_worker * job.resources.worker.worker_cpu + job.resources.ps.num_ps * job.resources.ps.ps_cpu) / self.cluster.num_cpu
-                dom_share = max(dom_share, (job.resources.worker.num_worker * job.resources.worker.worker_gpu) / self.cluster.num_gpu)
-                if job.resources.ps.num_ps < config.MAX_NUM_WORKERS and job.resources.worker.num_worker < config.MAX_NUM_WORKERS:
+                dom_share = (
+                    job.resources.worker.num_worker * job.resources.worker.worker_cpu
+                    + job.resources.ps.num_ps * job.resources.ps.ps_cpu
+                ) / self.cluster.num_cpu
+                dom_share = max(
+                    dom_share,
+                    (job.resources.worker.num_worker * job.resources.worker.worker_gpu) / self.cluster.num_gpu,
+                )
+                if (
+                    job.resources.ps.num_ps < config.MAX_NUM_WORKERS
+                    and job.resources.worker.num_worker < config.MAX_NUM_WORKERS
+                ):
                     drf_queue.put((dom_share, job_arrival, job))
             else:
                 break

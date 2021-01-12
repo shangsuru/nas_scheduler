@@ -28,13 +28,13 @@ class SchedulerBase(metaclass=abc.ABCMeta):
         self.testing_overhead = 0
 
     def submit_job(self, job):
-        job.status = 'queueing'
+        job.status = "queueing"
         # priority queue based on arrival time
         self.queueing_jobs.put((job.arrival_time, job))
         self.uncompleted_jobs.append(job)
 
     async def stop(self):
-        logger.debug(f'delete unfinished jobs...')
+        logger.debug(f"delete unfinished jobs...")
         thread_list = []
         for job in self.uncompleted_jobs:
             await job.delete(True)
@@ -63,23 +63,21 @@ class SchedulerBase(metaclass=abc.ABCMeta):
                 # to avoid this error, run 'echo "MaxStartups 100:10:200" | sudo tee -a /etc/ssh/sshd_config && sudo service ssh restart' on the server
                 self.running_jobs.append(job)
                 coroutine_list.append(asyncio.create_task(self.__run(job, ps_placement, worker_placement)))
-                job.status = 'running'
+                job.status = "running"
             else:
-                job.status = 'pending'
+                job.status = "pending"
                 Progressor.remove_from_running_jobs(job)
 
         await asyncio.gather(*coroutine_list)
         scaling_toc = time.time()
-        self.scaling_overhead += (scaling_toc - scaling_tic)
-        logger.debug(f'job starting time: {scaling_toc - scaling_tic:.3f} seconds.')
+        self.scaling_overhead += scaling_toc - scaling_tic
+        logger.debug(f"job starting time: {scaling_toc - scaling_tic:.3f} seconds.")
 
         # signal scheduling completion to progressor
         finished_jobs = await Progressor.update_progress()
         for finished_job in finished_jobs:
             self.cur_ts_completed_jobs.append(finished_job)
         await self._delete()
-
-
 
     async def __run(self, job, ps_placement, worker_placement):
         """Run a given job with given ps and worker placements
@@ -88,10 +86,12 @@ class SchedulerBase(metaclass=abc.ABCMeta):
             job (DLJob): job instance
             ps_placement (list): list of ps nodes, i.e. ip addresses
             worker_placement (list): list of worker nodes, i.e. ip addresses
-        """ 
-        logger.debug(f'running {job.name}, num_ps: {job.resources.ps.num_ps}, \
+        """
+        logger.debug(
+            f"running {job.name}, num_ps: {job.resources.ps.num_ps}, \
             num_worker: {job.resources.worker.num_worker}, ps_placement: {ps_placement}, \
-            worker_placement: {worker_placement}')
+            worker_placement: {worker_placement}"
+        )
         # set placement and start job
         job.set_ps_placement(ps_placement)
         job.set_worker_placement(worker_placement)
@@ -100,14 +100,12 @@ class SchedulerBase(metaclass=abc.ABCMeta):
         Progressor.add_to_running_jobs(job)
 
     async def _delete(self):
-        """Delete all the jobs in the current timestamp of scheduler, including running and completed jobs.
-        """
+        """Delete all the jobs in the current timestamp of scheduler, including running and completed jobs."""
         delete_tic = time.time()
         stopping_jobs = []
         # clear existing jobs for next time slot
         for job in self.running_jobs:
-            stopping_jobs.append(
-                asyncio.create_task(job.delete(True)))
+            stopping_jobs.append(asyncio.create_task(job.delete(True)))
             self.allocator.free_job_resources(job)
 
         for job in self.cur_ts_completed_jobs:
@@ -121,8 +119,8 @@ class SchedulerBase(metaclass=abc.ABCMeta):
         self.cur_ts_completed_jobs = []
 
         delete_toc = time.time()
-        self.scaling_overhead += (delete_toc - delete_tic)
-        logger.debug(f'job shutdown time: {(delete_toc - delete_tic):.3f} seconds.')
+        self.scaling_overhead += delete_toc - delete_tic
+        logger.debug(f"job shutdown time: {(delete_toc - delete_tic):.3f} seconds.")
 
         # get statistics of this timeslot
         await Statsor.stats(Timer.get_clock())

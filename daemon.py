@@ -32,7 +32,7 @@ async def main():
     elif config.JOB_SCHEDULER == "drf":
         scheduler = DRFScheduler(cluster)
     else:
-        logger.error(f'Scheduler {config.JOB_SCHEDULER} not found.')
+        logger.error(f"Scheduler {config.JOB_SCHEDULER} not found.")
     Statsor.set_cluster_and_scheduler(cluster, scheduler)
 
     await listen(scheduler)
@@ -90,9 +90,7 @@ async def listen(scheduler: SchedulerBase):
                         deleted = True
                         break
                 if deleted:
-                    await send(
-                        redis_connection, "delete", "job was deleted successfully"
-                    )
+                    await send(redis_connection, "delete", "job was deleted successfully")
                 else:
                     await send(
                         redis_connection,
@@ -184,9 +182,7 @@ async def send(redis_connection, response, args: list = None):
     args (list): Arguments associated with response, if None no arguments
             are given to the command
     """
-    await redis_connection.publish(
-        "daemon", json.dumps({"response": response, "args": args})
-    )
+    await redis_connection.publish("daemon", json.dumps({"response": response, "args": args}))
 
 
 def _get_command_args(message: str):  # -> tuple[str, str]

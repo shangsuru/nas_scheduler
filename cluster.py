@@ -1,7 +1,8 @@
 import config
 from log import logger
 
-class Cluster():
+
+class Cluster:
     def __init__(self):
         self.num_cpu = None
         self.num_mem = None
@@ -19,8 +20,7 @@ class Cluster():
         self.node_used_gpu_list = [0 for i in range(len(config.NODE_LIST))]
 
     def _set_cluster_config(self):
-        """Sets the cluster details, such as nodes, memory, bandwidth and gpus.
-        """
+        """Sets the cluster details, such as nodes, memory, bandwidth and gpus."""
         self.num_nodes = len(config.NODE_LIST)
         self.nodes = config.NODE_LIST
         cpu_per_node = config.CPU_PER_NODE
@@ -47,11 +47,14 @@ class Cluster():
         Returns:
             bool: True if available resources are sufficient for the job, False otherwise.
         """
-        return not any([self.used_cpu + cpu_req > self.num_cpu,
-            self.used_mem + mem_req > self.num_mem,
-            self.used_bw + bw_req > self.num_bw,
-            self.used_gpu + gpu_req > self.num_gpu
-            ])
+        return not any(
+            [
+                self.used_cpu + cpu_req > self.num_cpu,
+                self.used_mem + mem_req > self.num_mem,
+                self.used_bw + bw_req > self.num_bw,
+                self.used_gpu + gpu_req > self.num_gpu,
+            ]
+        )
 
     def check_node_resource_full(self, node_id, cpu_req, mem_req, bw_req=0, gpu_req=0, num=1):
         """Check whether resources on a given node is full.
@@ -66,11 +69,14 @@ class Cluster():
         Returns:
             bool: True if available resources are sufficient for the job, False otherwise.
         """
-        return not any([self.node_used_cpu_list[node_id] + num * cpu_req > config.CPU_PER_NODE,
-            self.node_used_mem_list[node_id] + num * mem_req > config.MEM_PER_NODE,
-            self.node_used_bw_list[node_id] + num * bw_req > config.BW_PER_NODE,
-            self.node_used_gpu_list[node_id] + num * gpu_req > config.BW_PER_NODE
-            ])
+        return not any(
+            [
+                self.node_used_cpu_list[node_id] + num * cpu_req > config.CPU_PER_NODE,
+                self.node_used_mem_list[node_id] + num * mem_req > config.MEM_PER_NODE,
+                self.node_used_bw_list[node_id] + num * bw_req > config.BW_PER_NODE,
+                self.node_used_gpu_list[node_id] + num * gpu_req > config.BW_PER_NODE,
+            ]
+        )
 
     def assign_resources(self, job, task_type, task_num, node_id):
         """Assign available resources to a node for a given job.
@@ -121,11 +127,11 @@ class Cluster():
         """
         sorted_list = []
         for i in range(self.num_nodes):
-            if resource == 'cpu':
+            if resource == "cpu":
                 sorted_list.append((self.node_used_cpu_list[i], i))
-            elif resource == 'gpu':
+            elif resource == "gpu":
                 sorted_list.append((self.node_used_gpu_list[i], i))
-            elif resource == 'mem':
+            elif resource == "mem":
                 sorted_list.append((self.node_used_mem_list[i], i))
         sorted_list.sort(key=lambda x: x[0])
         return sorted_list

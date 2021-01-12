@@ -9,41 +9,41 @@ from log import logger
 import redis
 import json
 
+
 def prepare_job_repo():
     job_repo = list()
-    for filename in Path('job_repo').glob('*.yaml'):
+    for filename in Path("job_repo").glob("*.yaml"):
         job_repo.append(str(filename))
 
     return job_repo
 
 
-class EndToEndTest():
+class EndToEndTest:
     def __init__(self):
         self.redis_connection = redis.Redis()
         self.channel = self.redis_connection.pubsub()
-        self.channel.psubscribe(['daemon', 'timer'])
+        self.channel.psubscribe(["daemon", "timer"])
         self.job_dict = dict()
         self.counter = 0
         self.generate_jobs()
         self.initiated = threading.Event()
 
         self.send("reset")
-        logger.debug('EndToEndTest sent reset signal')
+        logger.debug("EndToEndTest sent reset signal")
         # wait for ack
         for msg in self.channel.listen():
-            if msg['pattern'] is None:  # TODO
+            if msg["pattern"] is None:  # TODO
                 continue
-            if msg['channel'] == b'timer' and self.counter == config.TOT_NUM_JOBS:
-                logger.debug(f'initiated stop')
+            if msg["channel"] == b"timer" and self.counter == config.TOT_NUM_JOBS:
+                logger.debug(f"initiated stop")
                 sys.exit(0)
-            if msg['channel'] == b'timer':
-                self.submit_job(int(msg['data']))
+            if msg["channel"] == b"timer":
+                self.submit_job(int(msg["data"]))
             else:
                 payload = json.loads(msg["data"])
-                if (payload["response"] == "submit"):
+                if payload["response"] == "submit":
                     continue
                 self.submit_job(int(payload["args"][0]))
-
 
     def generate_jobs(self):
         tic = time.time()
@@ -64,12 +64,12 @@ class EndToEndTest():
                 self.job_dict[timeslot] = [job_config_file]
 
         toc = time.time()
-        logger.debug(f'has generated {config.TOT_NUM_JOBS} jobs')
-        logger.debug(f'time to generate jobs: {toc - tic:.3f} seconds.')
+        logger.debug(f"has generated {config.TOT_NUM_JOBS} jobs")
+        logger.debug(f"time to generate jobs: {toc - tic:.3f} seconds.")
 
     def submit_job(self, t):
         # put jobs into queue
-        logger.info(f'-------*********-------- starting timeslot {t} --------*********-------')
+        logger.info(f"-------*********-------- starting timeslot {t} --------*********-------")
         if t in self.job_dict:
             self.counter += len(self.job_dict[t])
             self.send("submit", args=self.job_dict[t])
@@ -78,14 +78,12 @@ class EndToEndTest():
         self.send("init")
 
     def send(self, command, args=None):
-        self.redis_connection.publish(
-            "client", json.dumps({'command': command, 'args': args})
-        )
+        self.redis_connection.publish("client", json.dumps({"command": command, "args": args}))
 
 
 def main():
     EndToEndTest()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

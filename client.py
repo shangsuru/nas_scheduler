@@ -55,9 +55,7 @@ class Client:
         Args:
             jobfile (str): yaml file containing the job data
         """
-        self.redis_connection.publish(
-            "client", json.dumps({"command": "submit", "args": [jobfile]})
-        )
+        self.redis_connection.publish("client", json.dumps({"command": "submit", "args": [jobfile]}))
         print(self.listen())
 
     def delete(self, uid):
@@ -67,18 +65,14 @@ class Client:
         Args:
             uid (int): uid of the job to be deleted
         """
-        self.redis_connection.publish(
-            "client", json.dumps({"command": "delete", "args": uid})
-        )
+        self.redis_connection.publish("client", json.dumps({"command": "delete", "args": uid}))
         print(self.listen())
 
     def top(self):
         """
         Sends a top message to the daemon and prints a single view for all the jobs running on the cluster
         """
-        self.redis_connection.publish(
-            "client", json.dumps({"command": "top", "args": None})
-        )
+        self.redis_connection.publish("client", json.dumps({"command": "top", "args": None}))
         headers = ["id", "name", "total progress/total epochs", "sum_speed(batches/second)"]
         print(tabulate(self.listen(), headers=headers))
 
@@ -89,9 +83,7 @@ class Client:
         Args:
             uid (int): uid of the job
         """
-        self.redis_connection.publish(
-            "client", json.dumps({"command": "status", "args": uid})
-        )
+        self.redis_connection.publish("client", json.dumps({"command": "status", "args": uid}))
         data = self.listen()
         if data[0][2] == "ps":
             metrics = [
@@ -119,6 +111,7 @@ class Client:
                 "worker cpu usage diff",
             ]
             print(tabulate(data, headers=metrics))
+
 
 def main():
     args = docopt(__doc__, version="Client 1.0")

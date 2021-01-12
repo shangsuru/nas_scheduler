@@ -40,7 +40,7 @@ class FIFOScheduler(SchedulerBase):
                     self.cluster.used_mem += mem_req
                     self.cluster.used_bw += bw_req
                     self.cluster.used_gpu += gpu_req
-                else: # try next job before quitting
+                else:  # try next job before quitting
                     flag = True
                     break
             if flag:
