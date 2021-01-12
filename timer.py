@@ -1,5 +1,5 @@
-from log import logger
 import redis
+from log import logger
 
 
 class Timer:

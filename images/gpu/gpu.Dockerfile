@@ -18,6 +18,7 @@ ENV PYTHONPATH $PYTHONPATH:/mxnet/example/image-classification/
 
 # Install mxnet 1.7.0
 RUN pip install mxnet-cu100==1.7.0
+RUN pip install redis
 
 # Get resnet model
 RUN mkdir -p /mxnet/example/image-classification/symbols

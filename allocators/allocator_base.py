@@ -1,7 +1,7 @@
 import abc
 import time
-from queue import PriorityQueue
 from log import logger
+from queue import PriorityQueue
 
 
 class ResourceAllocator(metaclass=abc.ABCMeta):
@@ -13,10 +13,11 @@ class ResourceAllocator(metaclass=abc.ABCMeta):
             self.cluster.free_resources(job, "ps", 1, self.cluster.get_node_index(node))
         for node in job.worker_placement:
             self.cluster.free_resources(job, "worker", 1, self.cluster.get_node_index(node))
-        logger.debug('freed up job resources')
+        logger.debug("freed up job resources")
 
     def allocate(self, jobs):
-        """Allocate resources for the given jobs.
+        """
+        Allocate resources for the given jobs.
         We place jobs in increasing order of their resource demand (i.e., smallest job first) in order
         to avoid job starvation. If the job uses the allreduce distribution strategy, we know that num_ps == 0.
         We try allocating resources until all jobs are placed or until there aren't enough resources left

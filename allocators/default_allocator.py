@@ -8,7 +8,8 @@ class DefaultAllocator(ResourceAllocator):
         super().__init__(cluster)
 
     def allocate_job(self, job):
-        """Allocate resources for the given job.
+        """
+        Allocate resources for the given job.
         Given the numbers of workers and parameter servers in a synchronous training job,
         the optimal worker/parameter server placement principle to achieve the maximal training speed
         for the job, in a cluster of homogeneous servers, is to use the smallest number of servers to
@@ -30,10 +31,10 @@ class DefaultAllocator(ResourceAllocator):
             worker_nodes (list of int): node indexes used to allocate the resources for the workers
         """
         ps_nodes = []
-        worker_nodes = []    # these will be filled with the used nodes for hosting the job
-        sorted_nodes_list = self.cluster.sort_nodes("cpu")   # get nodes sorted by ascending cpu-resource capacity
+        worker_nodes = []  # these will be filled with the used nodes for hosting the job
+        sorted_nodes_list = self.cluster.sort_nodes("cpu")  # get nodes sorted by ascending cpu-resource capacity
 
-        available_resources = np.zeros(shape=(len(sorted_nodes_list), 4))     # matrix to contain available resources
+        available_resources = np.zeros(shape=(len(sorted_nodes_list), 4))  # matrix to contain available resources
         for i in range(len(sorted_nodes_list)):
             used_cpus, node_index = sorted_nodes_list[i]
             # each row of the matrix available_resources contains the resources available for a node in the cluster
@@ -49,14 +50,20 @@ class DefaultAllocator(ResourceAllocator):
 
             for i in range(limit):
                 # in each iteration we will try allocating a worker and a ps while enough resources are left
-                if i < job.resources.worker.num_worker:     # only enter this block if more workers were requested
-                    res_usage = np.array([job.resources.worker.worker_cpu, job.resources.worker.worker_mem,
-                                          job.resources.worker.worker_bw, job.resources.worker.worker_cpu])
-                    available_resources_minus_job_resources[i % node_amount] -= res_usage   # update available resources
+                if i < job.resources.worker.num_worker:  # only enter this block if more workers were requested
+                    res_usage = np.array(
+                        [
+                            job.resources.worker.worker_cpu,
+                            job.resources.worker.worker_mem,
+                            job.resources.worker.worker_bw,
+                            job.resources.worker.worker_gpu,
+                        ]
+                    )
+                    available_resources_minus_job_resources[i % node_amount] -= res_usage  # update available resources
 
-                if i < job.resources.ps.num_ps:             # only enter this block if more ps were requested
+                if i < job.resources.ps.num_ps:  # only enter this block if more ps were requested
                     res_usage = np.array([job.resources.ps.ps_cpu, job.resources.ps.ps_mem, job.resources.ps.ps_bw, 0])
-                    available_resources_minus_job_resources[i % node_amount] -= res_usage   # update available resources
+                    available_resources_minus_job_resources[i % node_amount] -= res_usage  # update available resources
 
                 if np.min(available_resources_minus_job_resources) >= 0:  # allocate the resources in the cluster
                     used_cpus, node_index = sorted_nodes_list[i % node_amount]
@@ -65,12 +72,13 @@ class DefaultAllocator(ResourceAllocator):
                     if i < job.resources.ps.num_ps:
                         ps_nodes.append(node_index)
                 elif node_amount != len(sorted_nodes_list):  # if we are using all nodes, we don't reset the progress
-                    ps_nodes = []           # empty the lists
+                    ps_nodes = []  # empty the lists
                     worker_nodes = []
                     break  # no resources left to allocate another worker and ps, try with one more node
 
-            if (len(ps_nodes) == job.resources.ps.num_ps and len(worker_nodes) == job.resources.worker.num_worker) or \
-                    node_amount == len(sorted_nodes_list):
+            if (
+                len(ps_nodes) == job.resources.ps.num_ps and len(worker_nodes) == job.resources.worker.num_worker
+            ) or node_amount == len(sorted_nodes_list):
                 # in this case the job fits or we used the maximum node amount, so we assign the resources
                 for node in ps_nodes:
                     self.cluster.assign_resources(job, "ps", 1, node)
@@ -81,7 +89,8 @@ class DefaultAllocator(ResourceAllocator):
         return ps_nodes, worker_nodes
 
     def get_min_req_node_amount(self, job):
-        """Given a job, this method will return the amount of empty nodes required to host this job.
+        """
+        Given a job, this method will return the amount of empty nodes required to host this job.
         Args:
             job (DLJob): job to be allocated
         Returns:
@@ -89,9 +98,15 @@ class DefaultAllocator(ResourceAllocator):
         """
         required_resources = job.get_total_required_resources()
 
-        min_req_nodes = np.ceil(np.array([required_resources['cpu'] / config.CPU_PER_NODE,
-                                          required_resources['mem'] / config.MEM_PER_NODE,
-                                          required_resources['bw'] / config.BW_PER_NODE,
-                                          required_resources['gpu'] / config.GPU_PER_NODE]))
+        min_req_nodes = np.ceil(
+            np.array(
+                [
+                    required_resources["cpu"] / config.CPU_PER_NODE,
+                    required_resources["mem"] / config.MEM_PER_NODE,
+                    required_resources["bw"] / config.BW_PER_NODE,
+                    required_resources["gpu"] / config.GPU_PER_NODE,
+                ]
+            )
+        )
 
         return int(np.max(min_req_nodes))
