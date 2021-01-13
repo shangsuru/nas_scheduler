@@ -50,6 +50,7 @@ async def fetch_with_timeout(redis_connection, key, timeout, num_retries=100, ca
         key (str): key for the value to be fetched from redis
         timeout (float): time (in ms) until a subsequent attempt to fetch the key
         num_retries (int): number of attempts to fetch the key
+        cast (func): function that casts an object to another type
 
     Raises:
         TimeoutError: value could not be fetched with given number of retries
