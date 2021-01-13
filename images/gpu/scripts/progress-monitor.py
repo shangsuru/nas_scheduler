@@ -91,11 +91,9 @@ def update_progress(logfile):
                     if val_loss_index > -1:
                         val_loss[epoch] = float(line[(line.find("=") + 1) :])
 
-
                     time_cost_index = line.find("Time cost")
                     if time_cost_index > -1:
                         time_cost[epoch] = float(line[(line.find("=") + 1) :])
-
 
         if len(time_cost) != 0:
             redis_connection.set("{}-progress_epoch".format(JOB_NAME), epoch)
@@ -123,6 +121,7 @@ def update_progress(logfile):
                 + str(time_cost)
             )
 
+
 def _set_dictionary(redis_connection, key, value):
     """
     Helper function to save a dictionary in redis
@@ -133,6 +132,7 @@ def _set_dictionary(redis_connection, key, value):
         value (dict): value for given key, which must be json-serializable
     """
     redis_connection.set(key, json.dumps(value))
+
 
 def _get_dictionary(redis_connection, key):
     """
