@@ -1,6 +1,7 @@
 import aiohttp
 import asyncio
 import concurrent
+import json
 import os
 import redis
 import shutil
@@ -292,11 +293,11 @@ class DLJob:
                 progress_epoch, progress_batch, val_loss = await asyncio.gather(
                     fetch_with_timeout(redis_connection, f"{self.name}-progress_epoch", 1000),
                     fetch_with_timeout(redis_connection, f"{self.name}-progress_batch", 1000),
-                    fetch_with_timeout(redis_connection, f"{self.name}-val_loss", 1000),
+                    fetch_with_timeout(redis_connection, f"{self.name}-val-loss", 1000),
                 )
 
                 self.progress_list[i] = (progress_epoch, progress_batch)
-                self.val_loss_list[i] = val_loss
+                self.val_loss_list[i] = json.loads(val_loss)
             except Exception as e:
                 logger.error("Failed to read training metrics from redis:", str(e))
 

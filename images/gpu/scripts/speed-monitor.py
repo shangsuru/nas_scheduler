@@ -24,7 +24,7 @@ def update_speed(logfile):
     filesize = 0
     line_number = 0
 
-    redis_connection = redis.Redis()
+    redis_connection = redis.Redis("130.83.143.241")
 
     redis_connection.set("{}-avg_speed".format(JOB_NAME), 0)
     redis_connection.set("{}-stb_speed".format(JOB_NAME), 0)
