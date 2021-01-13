@@ -73,7 +73,7 @@ class EndToEndTest:
             self.counter += len(self.job_dict[t])
             self.send("submit", args=self.job_dict[t])
         else:
-            self.send("submit", args = [])
+            self.send("submit", args=[])
 
     def send(self, command, args=None):
         self.redis_connection.publish("client", json.dumps({"command": command, "args": args}))
