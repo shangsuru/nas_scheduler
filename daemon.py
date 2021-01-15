@@ -81,7 +81,6 @@ async def listen(scheduler: SchedulerBase, heartbeat: Heartbeat):
                 for jobfile in args:
                     job = DLJob.create_from_config_file(os.getcwd(), jobfile)
                     scheduler.submit_job(job)
-                    asyncio.create_task(scheduler.init_schedule())
                     asyncio.create_task(
                         send(
                             redis_connection,
@@ -89,6 +88,7 @@ async def listen(scheduler: SchedulerBase, heartbeat: Heartbeat):
                             f"job successfully submitted with uid: {job.uid}",
                         )
                     )
+                asyncio.create_task(scheduler.init_schedule())
             elif command == "delete":
                 deleted = False
                 for job in scheduler.running_jobs:

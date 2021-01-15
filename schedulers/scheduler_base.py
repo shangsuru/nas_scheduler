@@ -108,7 +108,7 @@ class SchedulerBase(metaclass=abc.ABCMeta):
             ValueError: If the job to be removed is not queued / running.
         """
         if job not in self.uncompleted_jobs:
-            raise ValueError(f"Tried to remove a job that is no longer in queue: {}.")
+            raise ValueError(f"Tried to remove a job that is no longer in queue: {job.name}.")
 
         if job in self.running_jobs:
             self.running_jobs.remove(job)

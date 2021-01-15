@@ -72,9 +72,8 @@ class EndToEndTest:
         if t in self.job_dict:
             self.counter += len(self.job_dict[t])
             self.send("submit", args=self.job_dict[t])
-
-        # notify the scheduler that all jobs in this timeslot have been submitted
-        self.send("init")
+        else:
+            self.send("submit", args=[])
 
     def send(self, command, args=None):
         self.redis_connection.publish("client", json.dumps({"command": command, "args": args}))
