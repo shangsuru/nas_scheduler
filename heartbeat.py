@@ -41,7 +41,7 @@ class Heartbeat:
 
         nodes = k8s_api.get_nodes()
         erroneous_pods = []     # List of pod names (pod.metadata.name) for pods that have failed.
-        erroneous_nodes = []    # List of kubernetse node objects for nodes that have failed.
+        erroneous_nodes = []    # List of kubernetes node objects for nodes that have failed.
 
         # Collect nodes that may have experienced an error as well as erroneous pods.
         for node in nodes:
@@ -67,17 +67,15 @@ class Heartbeat:
         for pod in erroneous_pods:
             logger.warn(f"Pod {pod} has failed.")
 
-            # Remove jobs that run on the pod.
-            running_jobs = []
-            for job in self.scheduler.running_jobs:
+            # Remove jobs that run on the pod from scheduler (running & uncompleted) so they are not rescheduled.
+
+            for job in self.scheduler.uncompleted_jobs:
                 job.__get_pods_names()
 
-                if pod in job.worker_pods:
+                if pod not in job.worker_pods:
                     continue
 
-                running_jobs.append(job)
-
-            self.scheduler.running_jobs = running_jobs
+                self.scheduler.remove_job(job, reschedule=False)
 
         # Handle erroneous nodes
         for node in erroneous_nodes:
@@ -94,10 +92,13 @@ class Heartbeat:
                 logger.warn(f"Node {node.metadata.name} ({address}) has failed but is not in the cluster nodes list.")
                 continue
 
-            # Remove node from cluster
-            self.cluster.remove_node(address)
-
             # Remove jobs running on node from running jobs in scheduler
             # They will then be rescheduled in the next scheduling round.
-            running_jobs = self.scheduler.running_jobs
-            self.scheduler.running_jobs = [job for job in running_jobs if address not in job.worker_placement]
+            for job in self.scheduler.uncompleted_jobs:
+                if address not in job.worker_placement:
+                    continue
+
+                self.scheduler.remove_job(job)
+
+            # Remove node from cluster
+            self.cluster.remove_node(address)
