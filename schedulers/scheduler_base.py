@@ -112,6 +112,8 @@ class SchedulerBase(metaclass=abc.ABCMeta):
 
         if job in self.running_jobs:
             self.running_jobs.remove(job)
+            self.allocator.free_job_resources(job)
+            await job.delete()
 
         if reschedule:
             return
