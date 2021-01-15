@@ -103,7 +103,7 @@ class SchedulerBase(metaclass=abc.ABCMeta):
         Args:
             job (DLJob): The job instance to remove.
             reschedule (boolean): Whether to reschedule the job in the next scheduling round. If this value is false,
-                the job will be moved to the completed jobs queue.
+                the job will be treated as failed.
         Raises:
             ValueError: If the job to be removed is not queued / running.
         """
@@ -118,8 +118,8 @@ class SchedulerBase(metaclass=abc.ABCMeta):
         if reschedule:
             return
 
+        job.status = "failed"
         self.uncompleted_jobs.remove(job)
-        self.completed_jobs.append(job)
 
     async def _delete(self):
         """Delete all the jobs in the current timestamp of scheduler, including running and completed jobs."""
