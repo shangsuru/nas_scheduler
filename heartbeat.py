@@ -40,8 +40,8 @@ class Heartbeat:
         """
 
         nodes = k8s_api.get_nodes()
-        erroneous_pods = []     # List of pod names (pod.metadata.name) for pods that have failed.
-        erroneous_nodes = []    # List of kubernetes node objects for nodes that have failed.
+        erroneous_pods = []  # List of pod names (pod.metadata.name) for pods that have failed.
+        erroneous_nodes = []  # List of kubernetes node objects for nodes that have failed.
 
         # Collect nodes that may have experienced an error as well as erroneous pods.
         for node in nodes:

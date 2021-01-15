@@ -69,7 +69,7 @@ async def listen(scheduler: SchedulerBase, heartbeat: Heartbeat):
         await heartbeat.on_iteration()
 
         try:
-            sender, message = await asyncio.wait_for(channel.get(), .001)
+            sender, message = await asyncio.wait_for(channel.get(), 0.001)
         except asyncio.TimeoutError:
             continue
 
