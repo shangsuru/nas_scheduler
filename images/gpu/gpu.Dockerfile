@@ -18,7 +18,7 @@ ENV PYTHONPATH $PYTHONPATH:/mxnet/example/image-classification/
 
 # Install mxnet 1.7.0
 RUN pip install mxnet-cu100==1.7.0
-RUN pip install redis
+RUN pip install redis watchdog
 
 # Get resnet model
 RUN mkdir -p /mxnet/example/image-classification/symbols
@@ -29,5 +29,5 @@ RUN wget http://data.mxnet.io/data/cifar10/cifar10_val.rec -O /mxnet/cifar10_val
 RUN wget http://data.mxnet.io/data/cifar10/cifar10_train.rec -O /mxnet/cifar10_train.rec
 
 # scripts
- COPY scripts/* /
+COPY scripts/* /
 CMD sleep 1000000000
