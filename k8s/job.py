@@ -53,6 +53,8 @@ class Job:
             client.V1EnvVar(name="BATCH_SIZE", value=str(self.conf.get("batch_size", 0))),
             client.V1EnvVar(name="MXNET_KVSTORE_BIGARRAY_BOUND", value=self.conf.get("MXNET_KVSTORE_BIGARRAY_BOUND")),
             client.V1EnvVar(name="PS_VERBOSE", value=self.conf.get("ps_verbose")),
+            client.V1EnvVar(name="REDIS_HOST", value=config.REDIS_HOST_WORKER),
+            client.V1EnvVar(name="REDIS_PORT", value=str(config.REDIS_PORT_WORKER)),
         ]
 
     def __create_containers(self):

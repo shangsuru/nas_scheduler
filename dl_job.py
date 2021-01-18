@@ -1,6 +1,7 @@
 import aiohttp
 import asyncio
 import concurrent
+import config
 import json
 import os
 import redis
@@ -19,7 +20,7 @@ from uuid import uuid1
 
 
 k8s_api = KubeAPI()
-redis_connection = redis.Redis()
+redis_connection = redis.Redis(config.REDIS_HOST_DC, config.REDIS_PORT_DC)
 
 
 class DLJob:

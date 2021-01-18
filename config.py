@@ -42,4 +42,7 @@ JOB_SCHEDULER = "fifo"
 
 RANDOM_SEED = 9973
 
-REDIS_DAEMON_SIDE = "redis://localhost"
+REDIS_HOST_DC = "localhost"
+REDIS_PORT_DC = 30000
+REDIS_HOST_WORKER = "redis-master"
+REDIS_PORT_WORKER = 6379

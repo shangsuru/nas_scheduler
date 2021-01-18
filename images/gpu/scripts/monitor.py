@@ -17,6 +17,8 @@ logging.basicConfig(
 ROLE = os.getenv("ROLE")
 WORK_DIR = os.getenv("WORK_DIR")
 JOB_NAME = os.getenv("JOB_NAME")
+REDIS_HOST = os.getenv("REDIS_HOST")
+REDIS_PORT = os.getenv("REDIS_PORT")
 
 
 class Monitor:
@@ -57,7 +59,7 @@ class TrainingWatcher(PatternMatchingEventHandler):
         self.logfile = "/data/training.log"
         self.last_change = time.time()
         self.line_num = 0
-        self.redis_connection = redis.Redis("130.83.143.241")
+        self.redis_connection = redis.Redis(str(REDIS_HOST), int(REDIS_PORT))
         self.speed_list = []
         self.time_cost = {}
         self.train_acc = {}
