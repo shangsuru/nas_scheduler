@@ -19,9 +19,7 @@ class Progressor:
 
     @staticmethod
     async def update_progress():
-        # update job progress and training speed periodically
-        freq = 8
-        counter = 0
+        freq = 8  # frequency of job progress and training speed updates within a timeslot interval
         finished_jobs = []
 
         # save progress of each job at the beginning of time slot
@@ -36,11 +34,12 @@ class Progressor:
         # collect # of running tasks
         Progressor.num_running_tasks = []
 
-        while counter < freq and len(Progressor.running_jobs) > 0:
-            # if no jobs in this timeslot, skip it
+        counter = 0
+        while counter < freq and len(Progressor.running_jobs) > 0:  # if no jobs in this timeslot, skip it
             for i in range(config.TS_INTERVAL // freq):
                 await asyncio.sleep(1)
             counter += 1
+
             cpu_usage_dict = dict()  # job, cpu_usage in this interval
             num_tasks = 0
 
@@ -77,7 +76,7 @@ class Progressor:
                                 epoch += 1
                             epoch_list.append(epoch)
                             batch_list.append(batch)
-                        max_epoch_index = epoch_list.index(max(epoch_list))
+
                         max_batch_index = batch_list.index(max(batch_list))
                         logger.debug(f"epoch_size: {job.epoch_size}")
 
@@ -85,12 +84,9 @@ class Progressor:
                             epoch_list[max_batch_index] + batch_list[max_batch_index] * 1.0 / job.epoch_size
                         )
                 else:
-                    sum1 = 0
-                    sum2 = 0
-                    for epoch, batch in progress_list:
-                        sum1 += epoch
-                        sum2 += batch
-                    job.progress += sum1 / len(progress_list) + sum2 / len(progress_list) / job.epoch_size
+                    sum_epochs = sum(epoch for epoch, _ in progress_list)
+                    sum_batches = sum(batch for _, batch in progress_list)
+                    job.progress += sum_epochs / len(progress_list) + sum_batches / len(progress_list) / job.epoch_size
 
                 # update training speed dict
                 logger.debug(
@@ -107,31 +103,18 @@ class Progressor:
                 ps_cpu_usage_list = []
                 for metrics in ps_metrics:
                     ps_cpu_usage_list.append(metrics["cpu/usage_rate"] / 1000.0)
-                ps_cpu_diff = max(ps_cpu_usage_list) - min(ps_cpu_usage_list)
-                job.ps_cpu_diff = ps_cpu_diff
-                avg_ps_cpu = sum(ps_cpu_usage_list) / len(ps_cpu_usage_list)
+                job.ps_cpu_diff = max(ps_cpu_usage_list) - min(ps_cpu_usage_list)
 
                 worker_cpu_usage_list = []
                 for metrics in worker_metrics:
                     worker_cpu_usage_list.append(metrics["cpu/usage_rate"] / 1000.0)
-                worker_cpu_diff = max(worker_cpu_usage_list) - min(worker_cpu_usage_list)
-                job.worker_cpu_diff = worker_cpu_diff
-                avg_worker_cpu = sum(worker_cpu_usage_list) / len(worker_cpu_usage_list)
+                job.worker_cpu_diff = max(worker_cpu_usage_list) - min(worker_cpu_usage_list)
 
                 # cpu usage
+                avg_ps_cpu = sum(ps_cpu_usage_list) / len(ps_cpu_usage_list)
+                avg_worker_cpu = sum(worker_cpu_usage_list) / len(worker_cpu_usage_list)
                 cpu_usage_dict[job] = (avg_ps_cpu, avg_worker_cpu)
 
-                """
-                if job in cpu_usage_dict:
-                    old_ps_cpu, old_worker_cpu = cpu_usage_dict[job]
-                    new_ps_cpu = max(old_ps_cpu, avg_ps_cpu)
-                    new_worker_cpu = max(old_worker_cpu, avg_worker_cpu)
-                    cpu_usage_dict[job] = (new_ps_cpu, new_worker_cpu)  # choose the max instead of average
-                else:
-                    cpu_usage_dict[job] = (avg_ps_cpu, avg_worker_cpu)
-                """
-
-                # logger
                 logger.info(
                     f"job name: {job.name}, model name: {job.metadata.modelname} \
                     , kv_store: {job.envs.kv_store}\
@@ -142,8 +125,8 @@ class Progressor:
                     , num_epochs: {job.num_epochs}\
                     , speed_list: {speed_list}, sum_speed (samples/second): {sum(speed_list)}\
                     , sum_speed(batches/second): {sum(speed_list) / int(job.metadata.batch_size)}\
-                    , ps cpu usage diff: {ps_cpu_diff}\
-                    , worker cpu usage diff: {worker_cpu_diff}"
+                    , ps cpu usage diff: {job.ps_cpu_diff}\
+                    , worker cpu usage diff: {job.worker_cpu_diff}"
                 )
 
                 # whether job has been finished
@@ -167,9 +150,7 @@ class Progressor:
             # get normalized cpu in this interval and append it to this timeslot
             slot_avg_ps_cpu_list = []
             slot_avg_worker_cpu_list = []
-            for key, value in cpu_usage_dict.items():
-                job = key
-                ps_cpu, worker_cpu = value
+            for job, (ps_cpu, worker_cpu) in cpu_usage_dict.items():
                 norm_ps_cpu = ps_cpu / job.resources.ps.ps_cpu
                 norm_worker_cpu = worker_cpu / job.resources.worker.worker_cpu
                 slot_avg_ps_cpu_list.append(norm_ps_cpu)
