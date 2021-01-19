@@ -22,11 +22,6 @@ class Progressor:
         freq = 8  # frequency of job progress and training speed updates within a timeslot interval
         finished_jobs = []
 
-        # save progress of each job at the beginning of time slot
-        saved_progress_dict = dict()
-        for job in Progressor.running_jobs.copy():
-            saved_progress_dict[job.uid] = job.progress
-
         # collect cpu occupations
         Progressor.ps_cpu_occupations = []
         Progressor.worker_cpu_occupations = []
@@ -80,9 +75,8 @@ class Progressor:
                         max_batch_index = batch_list.index(max(batch_list))
                         logger.debug(f"epoch_size: {job.epoch_size}")
 
-                        job.progress = saved_progress_dict[job.uid] + (
-                            epoch_list[max_batch_index] + batch_list[max_batch_index] * 1.0 / job.epoch_size
-                        )
+                        job.progress += epoch_list[max_batch_index] + batch_list[max_batch_index] / job.epoch_size
+                        
                 else:
                     sum_epochs = sum(epoch for epoch, _ in progress_list)
                     sum_batches = sum(batch for _, batch in progress_list)
