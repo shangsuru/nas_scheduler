@@ -76,7 +76,7 @@ class Progressor:
                         logger.debug(f"epoch_size: {job.epoch_size}")
 
                         job.progress += epoch_list[max_batch_index] + batch_list[max_batch_index] / job.epoch_size
-                        
+
                 else:
                     sum_epochs = sum(epoch for epoch, _ in progress_list)
                     sum_batches = sum(batch for _, batch in progress_list)
@@ -93,24 +93,30 @@ class Progressor:
                 # get # of running tasks
                 num_tasks += job.resources.ps.num_ps + job.resources.worker.num_worker
 
-                # compute cpu usage difference
-                ps_cpu_usage_list = []
-                for metrics in ps_metrics:
-                    ps_cpu_usage_list.append(metrics["cpu/usage_rate"] / 1000.0)
-                job.ps_cpu_diff = max(ps_cpu_usage_list) - min(ps_cpu_usage_list)
+                # ps cpu usage difference and average cpu usage
+                if job.dist_strategy == "ps":
+                    ps_cpu_usage_list = []
+                    for metrics in ps_metrics:
+                        ps_cpu_usage_list.append(metrics["cpu/usage_rate"] / 1000.0)
 
+                    job.ps_cpu_diff = max(ps_cpu_usage_list) - min(ps_cpu_usage_list)
+                    avg_ps_cpu = sum(ps_cpu_usage_list) / len(ps_cpu_usage_list)
+                else:
+                    job.ps_cpu_diff = 0
+                    avg_ps_cpu = 0
+
+                # worker cpu usage difference and average cpu usage
                 worker_cpu_usage_list = []
                 for metrics in worker_metrics:
                     worker_cpu_usage_list.append(metrics["cpu/usage_rate"] / 1000.0)
                 job.worker_cpu_diff = max(worker_cpu_usage_list) - min(worker_cpu_usage_list)
-
-                # cpu usage
-                avg_ps_cpu = sum(ps_cpu_usage_list) / len(ps_cpu_usage_list)
                 avg_worker_cpu = sum(worker_cpu_usage_list) / len(worker_cpu_usage_list)
+
                 cpu_usage_dict[job] = (avg_ps_cpu, avg_worker_cpu)
 
                 logger.info(
                     f"job name: {job.name}, model name: {job.metadata.modelname} \
+                    , dist_strategy: {job.dist_strategy}\
                     , kv_store: {job.envs.kv_store}\
                     , batch_size: {job.metadata.batch_size}\
                     , num_ps: {job.resources.ps.num_ps}, num_worker: {job.resources.worker.num_worker}\
@@ -145,9 +151,11 @@ class Progressor:
             slot_avg_ps_cpu_list = []
             slot_avg_worker_cpu_list = []
             for job, (ps_cpu, worker_cpu) in cpu_usage_dict.items():
-                norm_ps_cpu = ps_cpu / job.resources.ps.ps_cpu
+                if job.dist_strategy == "ps":
+                    norm_ps_cpu = ps_cpu / job.resources.ps.ps_cpu
+                    slot_avg_ps_cpu_list.append(norm_ps_cpu)
+
                 norm_worker_cpu = worker_cpu / job.resources.worker.worker_cpu
-                slot_avg_ps_cpu_list.append(norm_ps_cpu)
                 slot_avg_worker_cpu_list.append(norm_worker_cpu)
 
             if len(slot_avg_ps_cpu_list) > 0:

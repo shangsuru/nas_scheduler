@@ -56,6 +56,7 @@ class DLJob:
 
         self.uid = uid
         self.tag = tag
+        self.dist_strategy = self.metadata["dist_strategy"]
         self.name = f"{uid}-{self.metadata.name}-{self.metadata.modelname}"
 
         self.timestamp = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
