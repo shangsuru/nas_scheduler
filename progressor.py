@@ -80,14 +80,10 @@ class Progressor:
                         max_epoch_index = epoch_list.index(max(epoch_list))
                         max_batch_index = batch_list.index(max(batch_list))
                         logger.debug(f"epoch_size: {job.epoch_size}")
-                        if max_epoch_index == max_batch_index:
-                            job.progress = saved_progress_dict[job.uid] + (
-                                epoch_list[max_epoch_index] + batch_list[max_epoch_index] * 1.0 / job.epoch_size
-                            )
-                        else:
-                            job.progress = saved_progress_dict[job.uid] + (
-                                epoch_list[max_batch_index] + batch_list[max_batch_index] * 1.0 / job.epoch_size
-                            )
+
+                        job.progress = saved_progress_dict[job.uid] + (
+                            epoch_list[max_batch_index] + batch_list[max_batch_index] * 1.0 / job.epoch_size
+                        )
                 else:
                     sum1 = 0
                     sum2 = 0
