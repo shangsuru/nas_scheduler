@@ -10,6 +10,7 @@ from tests.end_to_end import prepare_job_repo
 
 sys.path.insert(0, "/home/bp-nass/remote_sync/henry/nas_scheduler")
 
+
 def setup_cluster_and_allocator():
     cluster = Cluster()
     allocator = DefaultAllocator(cluster)
