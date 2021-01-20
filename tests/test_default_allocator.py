@@ -1,6 +1,6 @@
 import config
 import os
-import pytest
+import sys
 import yaml
 from allocators.default_allocator import DefaultAllocator
 from cluster import Cluster
@@ -8,6 +8,7 @@ from dl_job import DLJob
 from pathlib import Path
 from tests.end_to_end import prepare_job_repo
 
+sys.path.insert(0, "/home/bp-nass/remote_sync/henry/nas_scheduler")
 
 def setup_cluster_and_allocator():
     cluster = Cluster()
@@ -25,7 +26,7 @@ def setup_config(cpu_per_node, mem_per_node, bw_per_node, gpu_per_node, num_node
 
 def prepare_job_repo():
     job_repo = list()
-    for filename in Path("../job_repo").glob("*.yaml"):
+    for filename in Path("./job_repo").glob("*.yaml"):
         with open(filename, "r") as f:
             job_repo.append(yaml.full_load(f))
     return job_repo
