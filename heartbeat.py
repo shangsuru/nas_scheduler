@@ -7,6 +7,7 @@ from log import logger
 
 k8s_api = KubeAPI()
 
+
 class Heartbeat:
     """A heartbeat handler that regularly checks the availability of k8s as well as the pods.
 
