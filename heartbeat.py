@@ -1,11 +1,11 @@
 import asyncio
 import time
+import config
 
 from k8s.api import KubeAPI
 from log import logger
 
 k8s_api = KubeAPI()
-
 
 class Heartbeat:
     """A heartbeat handler that regularly checks the availability of k8s as well as the pods.
@@ -17,7 +17,7 @@ class Heartbeat:
         scheduler: The NAS scheduler managing jobs.
     """
 
-    heartbeat_interval = 10
+    heartbeat_interval = config.HEARTBEAT_INTERVAL_SEC
 
     def __init__(self, scheduler, cluster, daemon=True):
         self.cluster = cluster
@@ -32,73 +32,37 @@ class Heartbeat:
         await self.heartbeat()
         self.last_beat = time.perf_counter()
 
-    async def heartbeat(self):
-        """Performs a single heartbeat and updates the cluster and scheduler accordingly.
+    @staticmethod
+    def collect_failed_pods():
+        """Collects all failed pods.
 
-        We detect dead nodes by checking whether the phase of all pods on the node is set to "Failed".
-        (See: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase)
+        Returns:
+            A list of kubernetes pod objects that have failed.
         """
+        pods = k8s_api.get_pods()
+        failed_pods = []
 
-        nodes = k8s_api.get_nodes()
-        erroneous_pods = []  # List of pod names (pod.metadata.name) for pods that have failed.
-        erroneous_nodes = []  # List of kubernetes node objects for nodes that have failed.
+        for pod in pods:
+            if pod.status.phase == "Failed":
+                failed_pods.append(pod)
 
-        # Collect nodes that may have experienced an error as well as erroneous pods.
-        for node in nodes:
-            pods = k8s_api.get_pods(field_selector={"spec.nodeName": node.metadata.name})
-            node_failed = True
+        return failed_pods
 
-            for pod in pods:
-                if pod.status.phase != "Failed":
-                    node_failed = False
-                    continue
-
-                if pod.metadata.name in erroneous_pods:
-                    continue
-
-                erroneous_pods.append(pod.metadata.name)
-
-            if not node_failed:
-                continue
-
-            erroneous_nodes.append(node)
+    async def heartbeat(self):
+        """Performs a single heartbeat for failed pods and updates the cluster and scheduler accordingly."""
+        failed_pods = self.collect_failed_pods()
 
         # Handle erroneous pods
-        for pod in erroneous_pods:
-            logger.warn(f"Pod {pod} has failed.")
+        for pod in failed_pods:
+            pod_name = pod.metadata.name
+
+            logger.warn(f"Pod {pod_name} has failed.")
 
             # Remove jobs that run on the pod from scheduler (running & uncompleted) so they are not rescheduled.
-
             for job in self.scheduler.uncompleted_jobs:
                 job.__get_pods_names()
 
-                if pod not in job.worker_pods:
-                    continue
+                if pod_name in job.worker_pods:
+                    self.scheduler.remove_job(job, reschedule=False)
 
-                self.scheduler.remove_job(job, reschedule=False)
-
-        # Handle erroneous nodes
-        for node in erroneous_nodes:
-            logger.warn(f"Node {node.metadata.name} has failed.")
-
-            # Retrieve node address
-            try:
-                address = next(address for address in node.status.addresses if address.type == "InternalIP").address
-            except KeyError:
-                logger.error(f"Failed to get internal IP address of node {node.metadata.name}!")
-                continue
-
-            if address not in self.cluster.nodes:
-                logger.warn(f"Node {node.metadata.name} ({address}) has failed but is not in the cluster nodes list.")
-                continue
-
-            # Remove jobs running on node from running jobs in scheduler
-            # They will then be rescheduled in the next scheduling round.
-            for job in self.scheduler.uncompleted_jobs:
-                if address not in job.worker_placement:
-                    continue
-
-                self.scheduler.remove_job(job)
-
-            # Remove node from cluster
-            self.cluster.remove_node(address)
+            k8s_api.kill_pod(pod_name)
