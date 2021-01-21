@@ -35,6 +35,9 @@ class ResourceAllocator(metaclass=abc.ABCMeta):
         """
         tic = time.time()
 
+        # remove unscheduled jobs (@tiberi stated jobs with num_ps/num_worker==0 should simply be ignored)
+        jobs = [job for job in jobs if not (job.resources.worker.num_worker == 0 and job.resources.ps.num_ps == 0)]
+
         # sort jobs ascending based on num_ps and num_worker (smallest job first)
         sorted_job_queue = PriorityQueue()
         for job in jobs:
