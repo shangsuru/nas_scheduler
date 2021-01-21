@@ -29,7 +29,9 @@ class Monitor:
     def run(self):
         try:
             logging.info("Monitor started.")
-            self.observer.schedule(TrainingWatcher(), "/data")
+        logging.info("TRAINING_LOG_DIR={}".format(os.getenv("TRAINING_LOG_DIR")))
+        logging.info("TRAINING_LOG_FILE={}".format(os.getenv("TRAINING_LOG_FILE")))
+        self.observer.schedule(TrainingWatcher(), os.getenv("TRAINING_LOG_DIR"))
             self.observer.start()
             self.running = True
             while self.running:
@@ -44,7 +46,7 @@ class Monitor:
 
 class TrainingWatcher(PatternMatchingEventHandler):
     def __init__(self):
-        super().__init__(patterns=["*training.log"])
+        super().__init__(patterns=["*" + str(os.getenv("TRAINING_LOG_FILE"))])
         self.batch = 0
         self.epoch = 0
         self.filesize = 0

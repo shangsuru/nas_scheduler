@@ -55,6 +55,8 @@ class Job:
             client.V1EnvVar(name="PS_VERBOSE", value=self.conf.get("ps_verbose")),
             client.V1EnvVar(name="REDIS_HOST", value=config.REDIS_HOST_WORKER),
             client.V1EnvVar(name="REDIS_PORT", value=str(config.REDIS_PORT_WORKER)),
+            client.V1EnvVar(name="TRAINING_LOG_DIR", value=str(config.TRAINING_LOG_DIR)),
+            client.V1EnvVar(name="TRAINING_LOG_FILE", value=str(config.TRAINING_LOG_FILE)),
         ]
 
     def __create_containers(self):

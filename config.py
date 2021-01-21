@@ -46,3 +46,6 @@ REDIS_HOST_DC = "localhost"
 REDIS_PORT_DC = 30000
 REDIS_HOST_WORKER = "redis-master"
 REDIS_PORT_WORKER = 6379
+
+TRAINING_LOG_DIR = "/data/"
+TRAINING_LOG_FILE = "training.log"
