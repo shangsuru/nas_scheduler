@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import redis
 import sys
 import time
@@ -14,37 +15,70 @@ logging.basicConfig(
     format="%(asctime)s.%(msecs)03d %(module)s %(levelname)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
+
 ROLE = os.getenv("ROLE")
 WORK_DIR = os.getenv("WORK_DIR")
 JOB_NAME = os.getenv("JOB_NAME")
 REDIS_HOST = os.getenv("REDIS_HOST")
 REDIS_PORT = os.getenv("REDIS_PORT")
 
-
 class Monitor:
+    """
+    Class that actively monitors a training jobs via its log file
+    
+    Fields:
+        observer (watchdog.observers.Observer): Observer object watching for file changes in given directory
+        running (bool): True if Monitor is active else False
+    """
     def __init__(self) -> None:
         self.observer = Observer()
         self.running = False
 
     def run(self):
-        try:
-            logging.info("Monitor started.")
+        """
+        Activate Monitor
+        """
+        logging.info("Monitor started.")
         logging.info("TRAINING_LOG_DIR={}".format(os.getenv("TRAINING_LOG_DIR")))
         logging.info("TRAINING_LOG_FILE={}".format(os.getenv("TRAINING_LOG_FILE")))
         self.observer.schedule(TrainingWatcher(), os.getenv("TRAINING_LOG_DIR"))
-            self.observer.start()
-            self.running = True
-            while self.running:
-                time.sleep(1)
-        except:
-            self.observer.stop()
-        self.observer.join()
+        self.observer.start()
+        self.running = True
 
     def stop(self):
-        self.running = False
+        """
+        Deactivate Monitor
+        """
+        if self.running:
+            self.running = False
+            self.observer.stop()
+            self.observer.join()
 
 
 class TrainingWatcher(PatternMatchingEventHandler):
+    """
+    Parses log file on file changes and extracts metrics
+
+    Fields:
+        batch (int): Batch number
+        epoch (int): Epoch number
+        filesize (int): Size of file prior to change
+        keys (list[str]): Redis key values of metrics
+        logfile (str): Path to log file
+        last_change (timestamp): Timestamp of last change to file, this is used to prevent
+            the Watcher triggering two times on file change (Two changes are detecte even if 
+            file was only changed once)
+        line_num (int): Line number of the last line that has been read so far
+        redis_connection (redis.Redis): Redis API
+        speed_list (list[float]): List of speeds recorded so far
+        time_cost (dict): Time cost for specified epoch
+        train_acc (dict): Training accuracy for specified epoch
+        train_loss (dict): Training loss for specified epoch
+        val_acc (dict): Validation accuracy for specified epoch
+        val_loss (dict): Validation loss for specified epoch
+
+        _*****_pattern (re): regex patterns to extract metrics from log file
+    """
     def __init__(self):
         super().__init__(patterns=["*" + str(os.getenv("TRAINING_LOG_FILE"))])
         self.batch = 0
@@ -58,8 +92,8 @@ class TrainingWatcher(PatternMatchingEventHandler):
             "{}-val-loss".format(JOB_NAME),
             "{}-time-cost".format(JOB_NAME),
         ]
-        self.logfile = "/data/training.log"
-        self.last_change = time.time()
+        self.logfile = str(os.getenv("TRAINING_LOG_DIR")) + str(os.getenv("TRAINING_LOG_FILE"))
+        self.last_change = 0
         self.line_num = 0
         self.redis_connection = redis.Redis(str(REDIS_HOST), int(REDIS_PORT))
         self.speed_list = []
@@ -69,6 +103,16 @@ class TrainingWatcher(PatternMatchingEventHandler):
         self.val_acc = {}
         self.val_loss = {}
 
+        # Regular expressions for matching metrics
+        self._epoch_pattern = re.compile(r"Epoch\s*\[?\s*(?P<epoch>\d+)")
+        self._batch_pattern = re.compile(r"Batch\s*\[?\s*(?P<batch>\d+)")
+        self._speed_pattern = re.compile(r"Speed:\s*(?P<speed>\d+.\d+)")
+        self._train_acc_pattern = re.compile(r"Train(ing)?\s*(:|-)\s*accuracy\s*=\s*(?P<train_acc>\d+.\d+)")
+        self._train_ce_pattern = re.compile(r"Train(ing)?\s*(:|-)\s*cross-entropy\s*=\s*(?P<train_ce>\d+.\d+)")
+        self._val_acc_pattern = re.compile(r"Validation\s*(:|-)\s*accuracy\s*=\s*(?P<val_acc>\d+.\d+)")
+        self._val_ce_pattern = re.compile(r"Validation\s*(:|-)\s*cross-entropy\s*=\s*(?P<val_ce>\d+.\d+)")
+        self._time_cost_pattern = re.compile(r"Time cost=(?P<time_cost>\d+.\d+)")
+
         # Set default values
         self.redis_connection.set("{}-stb_speed".format(JOB_NAME), 0)
         self.redis_connection.set("{}-avg_speed".format(JOB_NAME), 0)
@@ -76,7 +120,8 @@ class TrainingWatcher(PatternMatchingEventHandler):
             self.redis_connection.set(key, 0)
 
     def on_modified(self, event):
-        """Event handling when the training file is modified
+        """
+        Callback when logfile has changed. Tries to extract metrics from log file.
 
         Args:
             event(watchdog.events.event): FileModifiedEvent for the training log file(used by watchdog API)
@@ -84,7 +129,7 @@ class TrainingWatcher(PatternMatchingEventHandler):
 
         # Modifying a file created two events instantly, we need to ignore the duplicate
         tic = time.time()
-        if tic - self.last_change < 0.05:
+        if tic - self.last_change < 0.005:
             return
         self.last_change = tic
 
@@ -114,50 +159,20 @@ class TrainingWatcher(PatternMatchingEventHandler):
                 # line should begin with epoch number
                 if epoch_index < 0:
                     continue
-
-                epoch = int(line[line.find("[", epoch_index) + 1 : line.find("]", epoch_index)])
-
+                self.parse_epoch(line)
                 # batch number
-                # TODO batches are now grouped
-                batch_index = line.find("Batch")
-                if batch_index > -1:
-                    self.batch = int(line[line.find("[", batch_index) + 1 : line.find("-", batch_index)])
-                else:
-                    self.batch = -1  # the end of this epoch
+                self.parse_batch(line)
 
                 # Retrieve mertrics
-                train_acc_index = line.find("Train-accuracy")
-                if train_acc_index > -1:
-                    self.train_acc[epoch] = float(line[(line.find("=") + 1) :])
-
-                train_loss_index = line.find("Train-cross-entropy")
-                if train_loss_index > -1:
-                    self.train_loss[epoch] = float(line[(line.find("=") + 1) :])
-
-                val_acc_index = line.find("Validation-accuracy")
-                if val_acc_index > -1:
-                    self.val_acc[epoch] = float(line[(line.find("=") + 1) :])
-
-                val_loss_index = line.find("Validation-cross-entropy")
-                if val_loss_index > -1:
-                    self.val_loss[epoch] = float(line[(line.find("=") + 1) :])
-
-                time_cost_index = line.find("Time cost")
-                if time_cost_index > -1:
-                    self.time_cost[epoch] = float(line[(line.find("=") + 1) :])
-
-                start = line.find("Speed")
-                end = line.find("samples")
-                if start > -1 and end > -1 and end > start:
-                    string = line[start:end].split(" ")[1]
-                    try:
-                        speed = float(string)
-                        self.speed_list.append(speed)
-                    except ValueError as e:
-                        logging.warning(e)
-                        break
+                self.parse_train_acc(line)
+                self.parse_train_ce(line)
+                self.parse_val_acc(line)
+                self.parse_val_ce(line)
+                self.parse_time_cost(line)
+                self.parse_speed(line)
 
         if len(self.time_cost) != 0:
+            print(self.epoch)
             self.redis_connection.set("{}-progress_epoch".format(JOB_NAME), self.epoch)
             self.redis_connection.set("{}-progress_batch".format(JOB_NAME), self.batch)
             self._set_dictionary("{}-train-acc".format(JOB_NAME), self.train_acc)
@@ -201,6 +216,97 @@ class TrainingWatcher(PatternMatchingEventHandler):
             self.redis_connection.set("{}-avg_speed".format(JOB_NAME), avg_speed)
             self.redis_connection.set("{}-stb_speed".format(JOB_NAME), stb_speed)
 
+    def parse_epoch(self, string):
+        """
+        Looks for epoch in given string, sets epoch if found
+
+        Args:
+            string (str): String in which the search should commence
+        """
+        res = self._epoch_pattern.search(string)
+        if res:
+            self.epoch =  int(res.group("epoch"))
+
+    def parse_batch(self, string):
+        """
+        Looks for batch in given string, sets batch if found
+
+        Args:
+            string (str): String in which the search should commence
+        """
+        # TODO batches are now grouped
+        res = self._batch_pattern.search(string)
+        if res:
+            self.batch = int(res.group("batch"))
+        else:
+            self.batch = -1 # the end of this epoch
+
+    def parse_train_acc(self, string):
+        """
+        Looks for training accuracy in given string, sets training accuracy if found
+
+        Args:
+            string (str): String in which the search should commence
+        """
+        res = self._train_acc_pattern.search(string)
+        if res:
+            self.train_acc[self.epoch] = float(res.group("train_acc"))
+
+    def parse_train_ce(self, string):
+        """
+        Looks for training loss in given string, sets training loss if found
+
+        Args:
+            string (str): String in which the search should commence
+        """
+        res = self._train_ce_pattern.search(string)
+        if res:
+            self.train_loss[self.epoch] = float(res.group("train_ce"))
+
+    def parse_val_acc(self, string):
+        """
+        Looks for validation accuracy in given string, sets validation accuracy if found
+
+        Args:
+            string (str): String in which the search should commence
+        """
+        res = self._val_acc_pattern.search(string)
+        if res:
+            self.val_acc[self.epoch] = float(res.group("val_acc"))
+
+    def parse_val_ce(self, string):
+        """
+        Looks for validation loss in given string, sets validation loss if found
+
+        Args:
+            string (str): String in which the search should commence
+        """
+        res = self._val_ce_pattern.search(string)
+        if res:
+            self.val_loss[self.epoch] = float(res.group("val_ce"))
+
+    def parse_time_cost(self, string):
+        """
+        Looks for time cost in given string, sets time cost if found
+
+        Args:
+            string (str): String in which the search should commence
+        """
+        res = self._time_cost_pattern.search(string)
+        if res: 
+            self.time_cost[self.epoch] = float(res.group("time_cost"))
+
+    def parse_speed(self, string):
+        """
+        Looks for speed in given string, sets speed if found
+
+        Args:
+            string (str): String in which the search should commence
+        """
+        res = self._speed_pattern.search(string)
+        if res:
+            self.speed_list.append(float(res.group("speed")))
+
     def _set_dictionary(self, key, value):
         """
         Helper function to save a dictionary in redis
@@ -232,3 +338,5 @@ if __name__ == "__main__":
         sys.exit(1)
     if ROLE == "worker":
         Monitor().run()
+        while True:
+            time.sleep(1)
