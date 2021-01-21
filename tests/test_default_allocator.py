@@ -101,6 +101,7 @@ def test_one_job_per_node():
         assert ps_placements[jobs[i].uid] == [config.NODE_LIST[node_index] for node_index in ps_nodes]
         assert worker_placements[jobs[i].uid] == [config.NODE_LIST[node_index] for node_index in worker_nodes]
 
+
 def test_unscheduled_jobs_skipped():
     """
     In this testcase each of the 3 jobs perfectly fits on one node,
@@ -118,11 +119,11 @@ def test_unscheduled_jobs_skipped():
     # set ps parameters and worker parameters such that first job and last job have num_ps == num_worker == 0.
     # these jobs is not scheduled yet and should simply be skipped by the allocator
     for i in range(len(jobs)):
-        jobs[i].resources.ps.num_ps = 2*(i%2)   # first iteration 2*i == 0
+        jobs[i].resources.ps.num_ps = 2 * (i % 2)  # first iteration 2*i == 0
         jobs[i].resources.ps.ps_cpu = 1
         jobs[i].resources.ps.ps_mem = 2
         jobs[i].resources.ps.ps_bw = 3
-        jobs[i].resources.worker.num_worker = 2*(i%2)
+        jobs[i].resources.worker.num_worker = 2 * (i % 2)
         jobs[i].resources.worker.worker_cpu = 4
         jobs[i].resources.worker.worker_mem = 5
         jobs[i].resources.worker.worker_bw = 6
@@ -134,13 +135,14 @@ def test_unscheduled_jobs_skipped():
 
     ps_placements, worker_placements = da1.allocate(jobs)
     print([job.uid for job in jobs])
-    assert jobs[0].uid not in ps_placements.keys()      # job should not be included in placement dict
+    assert jobs[0].uid not in ps_placements.keys()  # job should not be included in placement dict
     assert jobs[0].uid not in worker_placements.keys()
     ps_nodes, worker_nodes = da2.allocate_job(jobs[1])  # second job should be handled as usual
     assert ps_placements[jobs[1].uid] == [config.NODE_LIST[node_index] for node_index in ps_nodes]
     assert worker_placements[jobs[1].uid] == [config.NODE_LIST[node_index] for node_index in worker_nodes]
     assert jobs[2].uid not in ps_placements.keys()  # job should not be included in placement dict
     assert jobs[2].uid not in worker_placements.keys()
+
 
 def test_one_jobs_fills_all_nodes():
     """
@@ -205,4 +207,3 @@ def test_one_jobs_fills_all_nodes():
     for i in range(1, len(jobs)):
         assert jobs[i].uid not in ps_placements.keys()
         assert jobs[i].uid not in worker_placements.keys()
-
