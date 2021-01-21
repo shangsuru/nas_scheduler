@@ -14,6 +14,7 @@ os.environ["REDIS_HOST"] = config.REDIS_HOST_DC
 os.environ["REDIS_PORT"] = str(config.REDIS_PORT_DC)
 from images.gpu.scripts.monitor import Monitor, TrainingWatcher
 
+
 def jsonKeys2int(x):
     """
     Convert keys of a dict retrieved via json methods to integers
@@ -22,7 +23,7 @@ def jsonKeys2int(x):
         x(dict): Dictionary retrieved via json methods
     """
     if isinstance(x, dict):
-            return {int(k):v for k,v in x.items()}
+        return {int(k): v for k, v in x.items()}
     return x
 
 
@@ -35,6 +36,7 @@ class TestMonitor:
     redis_connection: Redis API object
     tw: TrainingWatcher object(refer to monitor.py)
     """
+
     monitor = Monitor()
     redis_connection = redis.Redis(config.REDIS_HOST_DC, config.REDIS_PORT_DC)
     tw = TrainingWatcher()
@@ -47,7 +49,7 @@ class TestMonitor:
         # create temporary log file
         logfile = open("./training.log", "w+")
         self.monitor.run()
-        time.sleep(.05)
+        time.sleep(0.05)
 
         # replicate metrics stored in Monitor/TrainingWatcher
         speed_list = []
@@ -69,7 +71,7 @@ class TestMonitor:
                 )
                 logfile.write(log)
                 logfile.flush()
-                time.sleep(.01)
+                time.sleep(0.01)
 
                 # check metrics calculation for speed
                 avg_speed = sum(speed_list) / len(speed_list)
@@ -100,17 +102,25 @@ class TestMonitor:
             )
             logfile.write(log)
             logfile.flush()
-            time.sleep(.01)
+            time.sleep(0.01)
 
             assert epoch == int(self.redis_connection.get("TESTMONITOR-progress_epoch"))
             assert -1 == int(self.redis_connection.get("TESTMONITOR-progress_batch"))
-            assert train_accuracy_lst == json.loads(self.redis_connection.get("TESTMONITOR-train-acc"), object_hook=jsonKeys2int)
-            assert train_cross_entropy_lst == json.loads(self.redis_connection.get("TESTMONITOR-train-loss"), object_hook=jsonKeys2int)
-            assert validation_accuracy_lst == json.loads(self.redis_connection.get("TESTMONITOR-val-acc"), object_hook=jsonKeys2int)
-            assert validation_cross_entropy_lst == json.loads(self.redis_connection.get("TESTMONITOR-val-loss"), object_hook=jsonKeys2int)
-            assert sum(time_cost_lst.values()) / len(time_cost_lst) == float(self.redis_connection.get(
-                "TESTMONITOR-time-cost"
-            ))
+            assert train_accuracy_lst == json.loads(
+                self.redis_connection.get("TESTMONITOR-train-acc"), object_hook=jsonKeys2int
+            )
+            assert train_cross_entropy_lst == json.loads(
+                self.redis_connection.get("TESTMONITOR-train-loss"), object_hook=jsonKeys2int
+            )
+            assert validation_accuracy_lst == json.loads(
+                self.redis_connection.get("TESTMONITOR-val-acc"), object_hook=jsonKeys2int
+            )
+            assert validation_cross_entropy_lst == json.loads(
+                self.redis_connection.get("TESTMONITOR-val-loss"), object_hook=jsonKeys2int
+            )
+            assert sum(time_cost_lst.values()) / len(time_cost_lst) == float(
+                self.redis_connection.get("TESTMONITOR-time-cost")
+            )
         self.monitor.stop()
         os.remove("./training.log")
 
@@ -128,7 +138,7 @@ class TestMonitor:
             "cross-entropy=0.000504209381099434"
         )
         assert self.tw.epoch == 999
-        
+
         self.tw.parse_epoch("junk")
         assert self.tw.epoch == 999
 
@@ -158,7 +168,6 @@ class TestMonitor:
         self.tw.parse_train_acc("junk")
         assert self.tw.train_acc[2] == 0.25
 
-
     def test_parse_train_ce(self):
         """
         Test parsing for training loss
@@ -172,7 +181,6 @@ class TestMonitor:
         self.tw.parse_train_ce("junk")
         assert self.tw.train_loss[2] == 2.955
 
-
     def test_parse_val_acc(self):
         """
         Test parsing for validation accuracy
@@ -185,7 +193,6 @@ class TestMonitor:
         assert self.tw.val_acc[2] == 0.325
         self.tw.parse_val_acc("junk")
         assert self.tw.val_acc[2] == 0.325
-
 
     def test_parse_val_ce(self):
         """
@@ -225,4 +232,3 @@ class TestMonitor:
         self.tw.parse_speed("junk")
         assert self.tw.speed_list[-1] == 5.1
         assert l == len(self.tw.speed_list)
-

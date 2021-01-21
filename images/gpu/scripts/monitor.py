@@ -22,14 +22,16 @@ JOB_NAME = os.getenv("JOB_NAME")
 REDIS_HOST = os.getenv("REDIS_HOST")
 REDIS_PORT = os.getenv("REDIS_PORT")
 
+
 class Monitor:
     """
     Class that actively monitors a training jobs via its log file
-    
+
     Fields:
         observer (watchdog.observers.Observer): Observer object watching for file changes in given directory
         running (bool): True if Monitor is active else False
     """
+
     def __init__(self) -> None:
         self.observer = Observer()
         self.running = False
@@ -66,7 +68,7 @@ class TrainingWatcher(PatternMatchingEventHandler):
         keys (list[str]): Redis key values of metrics
         logfile (str): Path to log file
         last_change (timestamp): Timestamp of last change to file, this is used to prevent
-            the Watcher triggering two times on file change (Two changes are detecte even if 
+            the Watcher triggering two times on file change (Two changes are detecte even if
             file was only changed once)
         line_num (int): Line number of the last line that has been read so far
         redis_connection (redis.Redis): Redis API
@@ -79,6 +81,7 @@ class TrainingWatcher(PatternMatchingEventHandler):
 
         _*****_pattern (re): regex patterns to extract metrics from log file
     """
+
     def __init__(self):
         super().__init__(patterns=["*" + str(os.getenv("TRAINING_LOG_FILE"))])
         self.batch = 0
@@ -225,7 +228,7 @@ class TrainingWatcher(PatternMatchingEventHandler):
         """
         res = self._epoch_pattern.search(string)
         if res:
-            self.epoch =  int(res.group("epoch"))
+            self.epoch = int(res.group("epoch"))
 
     def parse_batch(self, string):
         """
@@ -239,7 +242,7 @@ class TrainingWatcher(PatternMatchingEventHandler):
         if res:
             self.batch = int(res.group("batch"))
         else:
-            self.batch = -1 # the end of this epoch
+            self.batch = -1  # the end of this epoch
 
     def parse_train_acc(self, string):
         """
@@ -293,7 +296,7 @@ class TrainingWatcher(PatternMatchingEventHandler):
             string (str): String in which the search should commence
         """
         res = self._time_cost_pattern.search(string)
-        if res: 
+        if res:
             self.time_cost[self.epoch] = float(res.group("time_cost"))
 
     def parse_speed(self, string):
