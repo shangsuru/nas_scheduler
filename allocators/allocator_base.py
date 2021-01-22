@@ -35,6 +35,9 @@ class ResourceAllocator(metaclass=abc.ABCMeta):
         """
         tic = time.time()
 
+        # remove unscheduled jobs (jobs with num_ps/num_worker==0 should simply be ignored)
+        jobs = [job for job in jobs if not (job.resources.worker.num_worker == 0 and job.resources.ps.num_ps == 0)]
+
         # sort jobs ascending based on num_ps and num_worker (smallest job first)
         sorted_job_queue = PriorityQueue()
         for job in jobs:
@@ -55,8 +58,6 @@ class ResourceAllocator(metaclass=abc.ABCMeta):
                 job.resources.ps.num_ps = len(ps_placements[job.uid])
                 worker_placements[job.uid] = [self.cluster.nodes[node] for node in worker_nodes]
                 job.resources.worker.num_worker = len(worker_placements[job.uid])
-            else:  # Job didn't fit
-                break
 
         logger.debug(f"used cpu: {self.cluster.node_used_cpu_list}")
         toc = time.time()

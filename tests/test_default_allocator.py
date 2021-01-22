@@ -1,12 +1,10 @@
 import config
 import os
-import pytest
 import yaml
 from allocators.default_allocator import DefaultAllocator
 from cluster import Cluster
 from dl_job import DLJob
 from pathlib import Path
-from tests.end_to_end import prepare_job_repo
 
 
 def setup_cluster_and_allocator():
@@ -102,6 +100,48 @@ def test_one_job_per_node():
         ps_nodes, worker_nodes = da2.allocate_job(jobs[i])  # use allocate_job as gold standard (already tested above)
         assert ps_placements[jobs[i].uid] == [config.NODE_LIST[node_index] for node_index in ps_nodes]
         assert worker_placements[jobs[i].uid] == [config.NODE_LIST[node_index] for node_index in worker_nodes]
+
+
+def test_unscheduled_jobs_skipped():
+    """
+    In this testcase each of the 3 jobs perfectly fits on one node,
+    leaving no more resources on the node. We will verify, that:
+    1. each job allocates the correct amount of resources
+    2. each job is allocated on the correct node (on the first node in the sorted_nodes_list)
+    3. the blackbox function allocate from allocator_base is correct (use of allocate_job has to be correct)
+    """
+
+    jobs = get_jobs_list(amount=3)  # get 3 jobs from job repo
+    setup_config(
+        cpu_per_node=10, mem_per_node=14, bw_per_node=18, gpu_per_node=14, num_nodes=3
+    )  # set the cluster config
+
+    # set ps parameters and worker parameters such that first job and last job have num_ps == num_worker == 0.
+    # these jobs is not scheduled yet and should simply be skipped by the allocator
+    for i in range(len(jobs)):
+        jobs[i].resources.ps.num_ps = 2 * (i % 2)  # first iteration 2*i == 0
+        jobs[i].resources.ps.ps_cpu = 1
+        jobs[i].resources.ps.ps_mem = 2
+        jobs[i].resources.ps.ps_bw = 3
+        jobs[i].resources.worker.num_worker = 2 * (i % 2)
+        jobs[i].resources.worker.worker_cpu = 4
+        jobs[i].resources.worker.worker_mem = 5
+        jobs[i].resources.worker.worker_bw = 6
+        jobs[i].resources.worker.worker_gpu = 7
+
+    # instantiate cluster and DefaultAllocator
+    cluster1, da1 = setup_cluster_and_allocator()
+    cluster2, da2 = setup_cluster_and_allocator()
+
+    ps_placements, worker_placements = da1.allocate(jobs)
+    print([job.uid for job in jobs])
+    assert jobs[0].uid not in ps_placements.keys()  # job should not be included in placement dict
+    assert jobs[0].uid not in worker_placements.keys()
+    ps_nodes, worker_nodes = da2.allocate_job(jobs[1])  # second job should be handled as usual
+    assert ps_placements[jobs[1].uid] == [config.NODE_LIST[node_index] for node_index in ps_nodes]
+    assert worker_placements[jobs[1].uid] == [config.NODE_LIST[node_index] for node_index in worker_nodes]
+    assert jobs[2].uid not in ps_placements.keys()  # job should not be included in placement dict
+    assert jobs[2].uid not in worker_placements.keys()
 
 
 def test_one_jobs_fills_all_nodes():
