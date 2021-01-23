@@ -4,8 +4,6 @@ import os
 from progressor import Progressor
 from dl_job import DLJob
 
-sys.path.insert(0, "/home/bp-nass/remote_sync/henry/nas_scheduler")
-
 
 @pytest.mark.asyncio
 async def test_update_progress_ps_no_running_jobs():
