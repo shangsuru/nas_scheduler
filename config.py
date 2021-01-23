@@ -43,3 +43,6 @@ JOB_SCHEDULER = "fifo"
 RANDOM_SEED = 9973
 
 REDIS_DAEMON_SIDE = "redis://localhost"
+
+# Heartbeat configuration
+HEARTBEAT_INTERVAL_SEC = 30
