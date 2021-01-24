@@ -1,6 +1,5 @@
 import config
 import os
-import sys
 import yaml
 from allocators.default_allocator import DefaultAllocator
 from cluster import Cluster

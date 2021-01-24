@@ -1,5 +1,4 @@
 import pytest
-import sys
 import os
 from progressor import Progressor
 from dl_job import DLJob
