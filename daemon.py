@@ -48,7 +48,9 @@ async def setup_redis_connection():
         channel (aioredis.Channel): the channel is the object from which all
             messages sent by the client are received
     """
-    redis_connection = await aioredis.create_redis_pool((config.REDIS_HOST_DAEMON_CLIENT, config.REDIS_PORT_DAEMON_CLIENT))
+    redis_connection = await aioredis.create_redis_pool(
+        (config.REDIS_HOST_DAEMON_CLIENT, config.REDIS_PORT_DAEMON_CLIENT)
+    )
     channel = (await redis_connection.psubscribe("client"))[0]
     return redis_connection, channel
 
