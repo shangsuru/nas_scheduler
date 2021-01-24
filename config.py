@@ -49,3 +49,6 @@ REDIS_PORT_WORKER = 6379
 
 TRAINING_LOG_DIR = "/data/"
 TRAINING_LOG_FILE = "training.log"
+
+# Heartbeat configuration
+HEARTBEAT_INTERVAL_SEC = 30
