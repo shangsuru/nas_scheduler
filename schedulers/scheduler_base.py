@@ -86,7 +86,7 @@ class SchedulerBase(metaclass=abc.ABCMeta):
             worker_placement (list): list of worker nodes, i.e. ip addresses
         """
         logger.debug(
-            f"running {job.name}, num_ps: {job.resources.ps.num_ps}, \
+            f"running {job.name}, dist_strategy: {job.metadata.dist_strategy}, num_ps: {job.resources.ps.num_ps}, \
             num_worker: {job.resources.worker.num_worker}, ps_placement: {ps_placement}, \
             worker_placement: {worker_placement}"
         )

@@ -451,6 +451,25 @@ class DLJob:
             # delete job working dir
             shutil.rmtree(self.dir)
 
+    def get_required_resources_per_node(self):
+        """
+        Calculates resource requirement per node. Encapsulates logic regarding
+        dist_strategy so that individual schedulers don't have to.
+
+        Returns: (dict of str: int): resource type to required amount
+        """
+        required_cpu = (
+            0 if self.metadata.dist_strategy == "allreduce" else self.resources.ps.ps_cpu
+        ) + self.resources.worker.worker_cpu
+        required_mem = (
+            0 if self.metadata.dist_strategy == "allreduce" else self.resources.ps.ps_mem
+        ) + self.resources.worker.worker_mem
+        required_bw = (
+            0 if self.metadata.dist_strategy == "allreduce" else self.resources.ps.ps_bw
+        ) + self.resources.worker.worker_bw
+        required_gpu = self.resources.worker.worker_gpu
+        return {"cpu": required_cpu, "mem": required_mem, "bw": required_bw, "gpu": required_gpu}
+
     def get_total_required_resources(self):
         """Returns: dict containing the required amount of resources to host this job."""
         # if we use the dist_strategy ps we also need to count the resources required by the parameter servers
@@ -469,3 +488,14 @@ class DLJob:
         required_gpu = self.resources.worker.num_worker * self.resources.worker.worker_gpu
 
         return {"cpu": required_cpu, "mem": required_mem, "bw": required_bw, "gpu": required_gpu}
+
+    def increment_num_instances(self, increment=1):
+        """
+        Increments the num_worker. If job uses horovod, the num_ps is not incremented.
+
+        Args:
+            increment (int): amount to increment num_worker and num_ps by. Default is 1.
+        """
+        self.resources.worker.num_worker += increment
+        if self.metadata.dist_strategy == "ps":
+            self.resources.ps.num_ps += increment

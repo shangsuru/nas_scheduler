@@ -24,21 +24,17 @@ class FIFOScheduler(SchedulerBase):
         while not fifo_queue.empty():
             (_, job) = fifo_queue.get()
 
-            cpu_req = job.resources.ps.ps_cpu + job.resources.worker.worker_cpu
-            mem_req = job.resources.ps.ps_mem + job.resources.worker.worker_mem
-            bw_req = job.resources.ps.ps_bw + job.resources.worker.worker_bw
-            gpu_req = job.resources.worker.worker_gpu
+            req = job.get_required_resources_per_node()
 
             for i in range(config.MAX_NUM_WORKERS):
-                suff_resr = self.cluster.check_cluster_resource_full(cpu_req, mem_req, bw_req, gpu_req)
-                if suff_resr:
-                    job.resources.ps.num_ps += 1
-                    job.resources.worker.num_worker += 1
-                    self.cluster.used_cpu += cpu_req
-                    self.cluster.used_mem += mem_req
-                    self.cluster.used_bw += bw_req
-                    self.cluster.used_gpu += gpu_req
+                if self.cluster.check_cluster_resource_full(req["cpu"], req["mem"], req["bw"], req["gpu"]):
+                    job.increment_num_instances()
+                    self.cluster.used_cpu += req["cpu"]
+                    self.cluster.used_mem += req["mem"]
+                    self.cluster.used_bw += req["bw"]
+                    self.cluster.used_gpu += req["gpu"]
                 else:  # try next job before quitting
+                    # Caution: Comment in line above is wrong. Once else is entered scheduling is quit.
                     flag = True
                     break
             if flag:
