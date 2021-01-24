@@ -33,7 +33,7 @@ from tests.end_to_end import EndToEndTest
 class Client:
     def __init__(self):
         """Initializes a client object. Sets up connection to redis server and subscribes to the daemon channel."""
-        self.redis_connection = redis.Redis(config.REDIS_HOST_DC, config.REDIS_PORT_DC)
+        self.redis_connection = redis.Redis(config.REDIS_HOST_DAEMON_CLIENT, config.REDIS_PORT_DAEMON_CLIENT)
         self.channel = self.redis_connection.pubsub()
         self.channel.psubscribe("daemon")
 

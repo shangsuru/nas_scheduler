@@ -20,7 +20,7 @@ from uuid import uuid1
 
 
 k8s_api = KubeAPI()
-redis_connection = redis.Redis(config.REDIS_HOST_DC, config.REDIS_PORT_DC)
+redis_connection = redis.Redis(config.REDIS_HOST_DAEMON_CLIENT, config.REDIS_PORT_DAEMON_CLIENT)
 
 
 class DLJob:

@@ -10,8 +10,8 @@ os.environ["TRAINING_LOG_DIR"] = "./"
 os.environ["TRAINING_LOG_FILE"] = "training.log"
 os.environ["ROLE"] = "WORKER"
 os.environ["JOB_NAME"] = "TESTMONITOR"
-os.environ["REDIS_HOST"] = config.REDIS_HOST_DC
-os.environ["REDIS_PORT"] = str(config.REDIS_PORT_DC)
+os.environ["REDIS_HOST"] = config.REDIS_HOST_DAEMON_CLIENT
+os.environ["REDIS_PORT"] = str(config.REDIS_PORT_DAEMON_CLIENT)
 from images.gpu.scripts.monitor import Monitor, TrainingWatcher
 
 
@@ -38,7 +38,7 @@ class TestMonitor:
     """
 
     monitor = Monitor()
-    redis_connection = redis.Redis(config.REDIS_HOST_DC, config.REDIS_PORT_DC)
+    redis_connection = redis.Redis(config.REDIS_HOST_DAEMON_CLIENT, config.REDIS_PORT_DAEMON_CLIENT)
     tw = TrainingWatcher()
 
     def test_watch_dog_trigger1(self):

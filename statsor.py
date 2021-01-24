@@ -69,7 +69,7 @@ class Statsor:
                 average completion slots: {avg_completion_slot}"
             )
 
-        redis_connection = redis.Redis(config.REDIS_HOST_DC, config.REDIS_PORT_DC)
+        redis_connection = redis.Redis(config.REDIS_HOST_DAEMON_CLIENT, config.REDIS_PORT_DAEMON_CLIENT)
 
         redis_connection.set("JOB_SCHEDULER", config.JOB_SCHEDULER)
         redis_connection.set("timeslot", t)

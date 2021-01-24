@@ -10,7 +10,7 @@ class Timer:
     """
 
     clock = 1
-    redis_connection = redis.Redis(config.REDIS_HOST_DC, config.REDIS_PORT_DC)
+    redis_connection = redis.Redis(config.REDIS_HOST_DAEMON_CLIENT, config.REDIS_PORT_DAEMON_CLIENT)
 
     @staticmethod
     def reset_clock():
