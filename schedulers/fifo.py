@@ -27,12 +27,12 @@ class FIFOScheduler(SchedulerBase):
             req = job.get_required_resources_per_node()
 
             for i in range(config.MAX_NUM_WORKERS):
-                if self.cluster.check_cluster_resource_full(req['cpu'], req['mem'], req['bw'], req['gpu']):
+                if self.cluster.check_cluster_resource_full(req["cpu"], req["mem"], req["bw"], req["gpu"]):
                     job.increment_num_instances()
-                    self.cluster.used_cpu += req['cpu']
-                    self.cluster.used_mem += req['mem']
-                    self.cluster.used_bw += req['bw']
-                    self.cluster.used_gpu += req['gpu']
+                    self.cluster.used_cpu += req["cpu"]
+                    self.cluster.used_mem += req["mem"]
+                    self.cluster.used_bw += req["bw"]
+                    self.cluster.used_gpu += req["gpu"]
                 else:  # try next job before quitting
                     # Caution: Comment in line above is wrong. Once else is entered scheduling is quit.
                     flag = True
