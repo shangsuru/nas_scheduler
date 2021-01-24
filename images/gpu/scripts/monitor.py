@@ -316,7 +316,7 @@ class TrainingWatcher(PatternMatchingEventHandler):
 
         Args:
             redis_connection: connection to the redis database
-            key (str): key for the value to be fetched from redis
+            key (str): key for the value to be set in redis
             value (dict): value for given key, which must be json-serializable
         """
         self.redis_connection.set(key, json.dumps(value))
