@@ -490,7 +490,12 @@ class DLJob:
         return {"cpu": required_cpu, "mem": required_mem, "bw": required_bw, "gpu": required_gpu}
 
     def increment_num_instances(self, increment=1):
-        """Increments the num_worker. If job uses horovod, the num_ps is not incremented. """
+        """
+        Increments the num_worker. If job uses horovod, the num_ps is not incremented.
+
+        Args:
+            increment (int): amount to increment num_worker and num_ps by. Default is 1.
+        """
         self.resources.worker.num_worker += increment
         if self.metadata.dist_strategy == "ps":
             self.resources.ps.num_ps += increment
