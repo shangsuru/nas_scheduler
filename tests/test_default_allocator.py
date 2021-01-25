@@ -23,7 +23,7 @@ def setup_config(cpu_per_node, mem_per_node, bw_per_node, gpu_per_node, num_node
 
 def prepare_job_repo():
     job_repo = list()
-    for filename in Path("../job_repo").glob("*.yaml"):
+    for filename in Path("./job_repo").glob("*.yaml"):
         with open(filename, "r") as f:
             job_repo.append(yaml.full_load(f))
     return job_repo
