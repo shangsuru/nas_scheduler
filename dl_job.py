@@ -335,7 +335,7 @@ class DLJob:
         await self._read_training_speed()
         return list(self.speed_list)
 
-    def __get_pods_names(self):
+    def _get_pods_names(self):
         """
         Get the names of the pods belonging to the task
 

@@ -61,7 +61,7 @@ class Heartbeat:
 
             # Remove jobs that run on the pod from scheduler (running & uncompleted) so they are not rescheduled.
             for job in self.scheduler.uncompleted_jobs:
-                job.__get_pods_names()
+                job._get_pods_names()
 
                 if pod_name in job.worker_pods:
                     self.scheduler.remove_job(job, reschedule=False)
