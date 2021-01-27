@@ -48,8 +48,8 @@ class Progressor:
                         continue
 
                     logger.debug(f"got training progress. speed_list={speed_list}")
-                except:
-                    logger.info("get training stats error!")
+                except Exception as e:
+                    logger.info("get training stats error!" + str(e))
                     continue
 
                 Progressor._compute_job_progress(job, progress_list)
