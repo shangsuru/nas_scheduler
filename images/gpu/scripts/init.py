@@ -17,11 +17,11 @@ def main():
     logging.info("start init process ...")
 
     logging.info("start training thread ...")
-    train = threading.Thread(target=(lambda: os.system("python /mxnet_mnist.py")), args=())
+    train = threading.Thread(target=(lambda: os.system("horovodrun -np 1 python /mxnet_mnist.py")), args=())
     train.setDaemon(True)
     train.start()
 
-    monitor = threading.Thread(target=(lambda: os.system("python3 /monitor.py")), args=())
+    monitor = threading.Thread(target=(lambda: os.system("python /monitor.py")), args=())
     monitor.setDaemon(True)
     monitor.start()
 

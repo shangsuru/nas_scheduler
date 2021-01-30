@@ -109,7 +109,7 @@ class TrainingWatcher(PatternMatchingEventHandler):
         # Regular expressions for matching metrics
         self._epoch_pattern = re.compile(r"Epoch\s*\[?\s*(?P<epoch>\d+)")
         self._batch_pattern = re.compile(r"Batch\s*\[?\s*(?P<batch>\d+)")
-        self._speed_pattern = re.compile(r"Speed:\s*(?P<speed>\d+.\d+)")
+        self._speed_pattern = re.compile(r"Speed(:|=)\s*(?P<speed>\d+.\d+)")
         self._train_acc_pattern = re.compile(r"Train(ing)?\s*(:|-)\s*accuracy\s*=\s*(?P<train_acc>\d+.\d+)")
         self._train_ce_pattern = re.compile(r"Train(ing)?\s*(:|-)\s*cross-entropy\s*=\s*(?P<train_ce>\d+.\d+)")
         self._val_acc_pattern = re.compile(r"Validation\s*(:|-)\s*accuracy\s*=\s*(?P<val_acc>\d+.\d+)")
