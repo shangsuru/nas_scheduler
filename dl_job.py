@@ -26,7 +26,6 @@ redis_connection = redis.Redis(config.REDIS_HOST_DAEMON_CLIENT, config.REDIS_POR
 class DLJob:
     """
     Job class defines the structure of a DL training job.
-
     Attributes:
         uid (int): job unique id -- incremental style
         tag (int): unique index for the job. useful for identifying
@@ -41,7 +40,6 @@ class DLJob:
     def __init__(self, uid, tag, dir_prefix, conf):
         """
         Initializes a job object.
-
         Args:
             uid (int): job unique id -- incremental style
             tag (int): unique index for the job. useful for identifying
@@ -130,7 +128,6 @@ class DLJob:
     def set_ps_placement(self, ps_placement):
         """
         Setting the placement of parameter servers.
-
         Args:
             ps_placement (list): list of parameter servers ip addresses
         """
@@ -145,7 +142,6 @@ class DLJob:
     def set_worker_placement(self, worker_placement):
         """
         Setting the placement of workers.
-
         Args:
             worker_placement (list): list of workers ip addresses
         """
@@ -160,7 +156,6 @@ class DLJob:
     def __set_mount_dirs(self, type, host_workdir_prefix):
         """
         Setting the directories on hosts to be mounted on containers
-
         Args:
             type (str): 'ps' or 'worker'
             host_workdir_prefix (str): host cwd prefix
@@ -335,10 +330,9 @@ class DLJob:
         await self._read_training_speed()
         return list(self.speed_list)
 
-    def __get_pods_names(self):
+    def _get_pods_names(self):
         """
         Get the names of the pods belonging to the task
-
         NAME                                    READY     STATUS    RESTARTS   AGE
         1-measurement-imagenet-ps-0-mzv2z       1/1       Running   0          1m
         """
@@ -354,7 +348,7 @@ class DLJob:
 
     async def _read_metrics(self):
         """Get the metrics of the pods for the job"""
-        self.__get_pods_names()
+        self._get_pods_names()
 
         # get heapster cluster ip
         heapster_service = k8s_api.get_services("kube-system", field_selector={"metadata.name": "heapster"})[0]
@@ -420,7 +414,6 @@ class DLJob:
 
     async def delete(self, del_all=False):
         """Delete the job.
-
         Args:
             del_all (bool): whether to delete all, including histories.
         """

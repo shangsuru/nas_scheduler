@@ -48,8 +48,8 @@ class Progressor:
                         continue
 
                     logger.debug(f"got training progress. speed_list={speed_list}")
-                except:
-                    logger.info("get training stats error!")
+                except Exception as e:
+                    logger.info(f"get training stats error! Exception:\n{str(e)}")
                     continue
 
                 Progressor._compute_job_progress(job, progress_list)
@@ -69,7 +69,7 @@ class Progressor:
                 avg_ps_cpu, avg_worker_cpu = Progressor._get_average_cpu_usage(job, ps_metrics, worker_metrics)
                 cpu_usage_dict[job] = (avg_ps_cpu, avg_worker_cpu)
 
-                Progressor.log_job_attributes(job, progress_list, speed_list)
+                Progressor._log_job_attributes(job, progress_list, speed_list)
 
                 if job.progress >= job.num_epochs:
                     Progressor._set_job_as_finished(finished_jobs, job)
