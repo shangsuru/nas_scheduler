@@ -19,7 +19,7 @@ def prepare_job_repo():
 
 class EndToEndTest:
     def __init__(self):
-        self.redis_connection = redis.Redis()
+        self.redis_connection = redis.Redis(config.REDIS_HOST_DAEMON_CLIENT, config.REDIS_PORT_DAEMON_CLIENT)
         self.channel = self.redis_connection.pubsub()
         self.channel.psubscribe(["daemon", "timer"])
         self.job_dict = dict()

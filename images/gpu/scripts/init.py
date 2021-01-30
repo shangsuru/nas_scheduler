@@ -21,18 +21,11 @@ def main():
     train.setDaemon(True)
     train.start()
 
-    logging.info("start speed monitor thread ...")
-    speed_monitor = threading.Thread(target=(lambda: os.system("python /speed-monitor.py")), args=())
-    speed_monitor.setDaemon(True)
-    speed_monitor.start()
 
-    logging.info("start progress monitor thread ...")
-    progress_monitor = threading.Thread(target=(lambda: os.system("python /progress-monitor.py")), args=())
-    progress_monitor.setDaemon(True)
-    progress_monitor.start()
+    monitor = threading.Thread(target=(lambda: os.system("python3 /monitor.py")), args=())
+    monitor.setDaemon(True)
+    monitor.start()
 
-    while True:
-        time.sleep(60)
 
 
 if __name__ == "__main__":

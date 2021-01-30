@@ -86,7 +86,7 @@ class SchedulerBase(metaclass=abc.ABCMeta):
             worker_placement (list): list of worker nodes, i.e. ip addresses
         """
         logger.debug(
-            f"running {job.name}, num_ps: {job.resources.ps.num_ps}, \
+            f"running {job.name}, dist_strategy: {job.metadata.dist_strategy}, num_ps: {job.resources.ps.num_ps}, \
             num_worker: {job.resources.worker.num_worker}, ps_placement: {ps_placement}, \
             worker_placement: {worker_placement}"
         )
@@ -96,6 +96,30 @@ class SchedulerBase(metaclass=abc.ABCMeta):
 
         await job.start()
         Progressor.add_to_running_jobs(job)
+
+    async def remove_job(self, job, reschedule=False):
+        """Removes a queued or running job from the scheduler.
+
+        Args:
+            job (DLJob): The job instance to remove.
+            reschedule (boolean): Whether to reschedule the job in the next scheduling round. If this value is false,
+                the job will be treated as failed.
+        Raises:
+            ValueError: If the job to be removed is not queued / running.
+        """
+        if job not in self.uncompleted_jobs:
+            raise ValueError(f"Tried to remove a job that is no longer in queue: {job.name}.")
+
+        if job in self.running_jobs:
+            self.running_jobs.remove(job)
+            self.allocator.free_job_resources(job)
+            await job.delete()
+
+        if reschedule:
+            return
+
+        job.status = "failed"
+        self.uncompleted_jobs.remove(job)
 
     async def _delete(self):
         """Delete all the jobs in the current timestamp of scheduler, including running and completed jobs."""

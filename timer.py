@@ -1,4 +1,5 @@
 import redis
+import config
 from log import logger
 
 
@@ -9,7 +10,7 @@ class Timer:
     """
 
     clock = 1
-    r = redis.Redis()
+    redis_connection = redis.Redis(config.REDIS_HOST_DAEMON_CLIENT, config.REDIS_PORT_DAEMON_CLIENT)
 
     @staticmethod
     def reset_clock():
@@ -22,7 +23,7 @@ class Timer:
         logger.debug(f"increment clock. New clock: {Timer.clock}")
 
         # broadcast next time slot to redis listeners on channel timer
-        Timer.r.publish("timer", Timer.clock)
+        Timer.redis_connection.publish("timer", Timer.clock)
         return Timer.clock
 
     @staticmethod

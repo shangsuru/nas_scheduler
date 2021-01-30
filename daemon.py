@@ -13,8 +13,8 @@ from schedulers.fifo import FIFOScheduler
 from schedulers.optimus import OptimusScheduler
 from schedulers.scheduler_base import SchedulerBase
 from statsor import Statsor
+from heartbeat import Heartbeat
 from timer import Timer
-
 
 k8s_api = KubeAPI()
 
@@ -34,7 +34,9 @@ async def main():
         logger.error(f"Scheduler {config.JOB_SCHEDULER} not found.")
     Statsor.set_cluster_and_scheduler(cluster, scheduler)
 
-    await listen(scheduler)
+    heartbeat = Heartbeat(scheduler, cluster)
+
+    await listen(scheduler, heartbeat)
 
 
 async def setup_redis_connection():
@@ -48,21 +50,31 @@ async def setup_redis_connection():
         channel (aioredis.Channel): the channel is the object from which all
             messages sent by the client are received
     """
-    redis_connection = await aioredis.create_redis_pool(config.REDIS_DAEMON_SIDE)
+    redis_connection = await aioredis.create_redis_pool(
+        (config.REDIS_HOST_DAEMON_CLIENT, config.REDIS_PORT_DAEMON_CLIENT)
+    )
     channel = (await redis_connection.psubscribe("client"))[0]
     return redis_connection, channel
 
 
-async def listen(scheduler: SchedulerBase):
+async def listen(scheduler: SchedulerBase, heartbeat: Heartbeat):
     """Main loop of the daemon waiting for client input
     Args:
         scheduler (SchedulerBase): Scheduler instance managing and scheduling
             jobs submitted by client
+        heartbeat (Heartbeat): Heartbeat instance to monitor unavailable nodes in the cluster.
     """
     redis_connection, channel = await setup_redis_connection()
 
     # listen for messages
-    async for sender, message in channel.iter():
+    while True:
+        await heartbeat.on_iteration()
+
+        try:
+            sender, message = await asyncio.wait_for(channel.get(), 0.001)
+        except asyncio.TimeoutError:
+            continue
+
         command, args = _get_command_args(message)
 
         # execute commands from client

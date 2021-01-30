@@ -42,4 +42,13 @@ JOB_SCHEDULER = "fifo"
 
 RANDOM_SEED = 9973
 
-REDIS_DAEMON_SIDE = "redis://localhost"
+REDIS_HOST_DAEMON_CLIENT = "localhost"
+REDIS_PORT_DAEMON_CLIENT = 30000
+REDIS_HOST_WORKER = "redis-master"
+REDIS_PORT_WORKER = 6379
+
+TRAINING_LOG_DIR = "/data/"
+TRAINING_LOG_FILE = "training.log"
+
+# Heartbeat configuration
+HEARTBEAT_INTERVAL_SEC = 30

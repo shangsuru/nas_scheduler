@@ -43,6 +43,23 @@ class KubeAPI:
         pods = self.get_pods(**kwargs)
         return [utils.rgetattr(pod, attribute) for pod in pods]
 
+    def kill_pod(self, name, namespace=k8s_params["namespace"]):
+        """Kills a k8s pod.
+
+        Args:
+            name (str): The name of the pod to kill.
+            namespace (str): The k8s namespace
+        """
+        self.kube_api_obj.delete_namespaced_pod(name, namespace)
+
+    def get_nodes(self):
+        """Queries k8s for all worker nodes.
+
+        Returns:
+            A list of all worker nodes connected to k8s.
+        """
+        return self.kube_api_obj.list_node().items
+
     def get_services(self, namespace=k8s_params["namespace"], field_selector=None, label_selector=None):
         """Get k8s services for a given namespace.
         E.g.

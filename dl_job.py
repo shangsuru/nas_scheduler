@@ -1,6 +1,7 @@
 import aiohttp
 import asyncio
 import concurrent
+import config
 import json
 import os
 import redis
@@ -19,13 +20,12 @@ from uuid import uuid1
 
 
 k8s_api = KubeAPI()
-redis_connection = redis.Redis()
+redis_connection = redis.Redis(config.REDIS_HOST_DAEMON_CLIENT, config.REDIS_PORT_DAEMON_CLIENT)
 
 
 class DLJob:
     """
     Job class defines the structure of a DL training job.
-
     Attributes:
         uid (int): job unique id -- incremental style
         tag (int): unique index for the job. useful for identifying
@@ -40,7 +40,6 @@ class DLJob:
     def __init__(self, uid, tag, dir_prefix, conf):
         """
         Initializes a job object.
-
         Args:
             uid (int): job unique id -- incremental style
             tag (int): unique index for the job. useful for identifying
@@ -56,6 +55,7 @@ class DLJob:
 
         self.uid = uid
         self.tag = tag
+        self.dist_strategy = self.metadata["dist_strategy"]
         self.name = f"{uid}-{self.metadata.name}-{self.metadata.modelname}"
 
         self.timestamp = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
@@ -128,7 +128,6 @@ class DLJob:
     def set_ps_placement(self, ps_placement):
         """
         Setting the placement of parameter servers.
-
         Args:
             ps_placement (list): list of parameter servers ip addresses
         """
@@ -143,7 +142,6 @@ class DLJob:
     def set_worker_placement(self, worker_placement):
         """
         Setting the placement of workers.
-
         Args:
             worker_placement (list): list of workers ip addresses
         """
@@ -158,7 +156,6 @@ class DLJob:
     def __set_mount_dirs(self, type, host_workdir_prefix):
         """
         Setting the directories on hosts to be mounted on containers
-
         Args:
             type (str): 'ps' or 'worker'
             host_workdir_prefix (str): host cwd prefix
@@ -333,10 +330,9 @@ class DLJob:
         await self._read_training_speed()
         return list(self.speed_list)
 
-    def __get_pods_names(self):
+    def _get_pods_names(self):
         """
         Get the names of the pods belonging to the task
-
         NAME                                    READY     STATUS    RESTARTS   AGE
         1-measurement-imagenet-ps-0-mzv2z       1/1       Running   0          1m
         """
@@ -352,7 +348,7 @@ class DLJob:
 
     async def _read_metrics(self):
         """Get the metrics of the pods for the job"""
-        self.__get_pods_names()
+        self._get_pods_names()
 
         # get heapster cluster ip
         heapster_service = k8s_api.get_services("kube-system", field_selector={"metadata.name": "heapster"})[0]
@@ -418,7 +414,6 @@ class DLJob:
 
     async def delete(self, del_all=False):
         """Delete the job.
-
         Args:
             del_all (bool): whether to delete all, including histories.
         """
@@ -451,6 +446,25 @@ class DLJob:
             # delete job working dir
             shutil.rmtree(self.dir)
 
+    def get_required_resources_per_node(self):
+        """
+        Calculates resource requirement per node. Encapsulates logic regarding
+        dist_strategy so that individual schedulers don't have to.
+
+        Returns: (dict of str: int): resource type to required amount
+        """
+        required_cpu = (
+            0 if self.metadata.dist_strategy == "allreduce" else self.resources.ps.ps_cpu
+        ) + self.resources.worker.worker_cpu
+        required_mem = (
+            0 if self.metadata.dist_strategy == "allreduce" else self.resources.ps.ps_mem
+        ) + self.resources.worker.worker_mem
+        required_bw = (
+            0 if self.metadata.dist_strategy == "allreduce" else self.resources.ps.ps_bw
+        ) + self.resources.worker.worker_bw
+        required_gpu = self.resources.worker.worker_gpu
+        return {"cpu": required_cpu, "mem": required_mem, "bw": required_bw, "gpu": required_gpu}
+
     def get_total_required_resources(self):
         """Returns: dict containing the required amount of resources to host this job."""
         # if we use the dist_strategy ps we also need to count the resources required by the parameter servers
@@ -469,3 +483,14 @@ class DLJob:
         required_gpu = self.resources.worker.num_worker * self.resources.worker.worker_gpu
 
         return {"cpu": required_cpu, "mem": required_mem, "bw": required_bw, "gpu": required_gpu}
+
+    def increment_num_instances(self, increment=1):
+        """
+        Increments the num_worker. If job uses horovod, the num_ps is not incremented.
+
+        Args:
+            increment (int): amount to increment num_worker and num_ps by. Default is 1.
+        """
+        self.resources.worker.num_worker += increment
+        if self.metadata.dist_strategy == "ps":
+            self.resources.ps.num_ps += increment
