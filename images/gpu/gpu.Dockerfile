@@ -12,13 +12,10 @@ RUN mkdir -p /mxnet/example/image-classification/data
 # correcting paths
 ENV PYTHONPATH $PYTHONPATH:/mxnet/example/image-classification/
 # Install mxnet 1.7.0
-<<<<<<< HEAD
+
 #RUN pip install mxnet-cu100==1.7.0
-RUN pip install redis
-=======
-RUN pip install mxnet-cu100==1.7.0
 RUN pip install redis watchdog
->>>>>>> master
+
 
 # Install dependencies for the mxnet_mnist.py testkript
 #RUN pip install horovod[mxnet]

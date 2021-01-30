@@ -21,11 +21,9 @@ def main():
     train.setDaemon(True)
     train.start()
 
-
     monitor = threading.Thread(target=(lambda: os.system("python3 /monitor.py")), args=())
     monitor.setDaemon(True)
     monitor.start()
-
 
 
 if __name__ == "__main__":
