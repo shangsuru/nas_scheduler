@@ -1,8 +1,4 @@
-# build based on official MXNet 0.1 GPU image, preparing all necessary init scripts and training examples.
-
-FROM mxnet/python:nightly_gpu_cu100_py3
-
-#MAINTAINER xxx
+FROM localhost:5000/k8s-mxnet-gpu-base
 
 # image-classification
 
@@ -15,10 +11,16 @@ RUN mkdir -p /mxnet/example/image-classification/data
 
 # correcting paths
 ENV PYTHONPATH $PYTHONPATH:/mxnet/example/image-classification/
-
 # Install mxnet 1.7.0
-RUN pip install mxnet-cu100==1.7.0
+#RUN pip install mxnet-cu100==1.7.0
 RUN pip install redis
+
+# Install dependencies for the mxnet_mnist.py testkript
+#RUN pip install horovod[mxnet]
+RUN pip uninstall -y typing
+RUN pip install gluoncv
+
+RUN pip install horovod[mxnet-cu100]
 
 # Get resnet model
 RUN mkdir -p /mxnet/example/image-classification/symbols
@@ -29,5 +31,5 @@ RUN wget http://data.mxnet.io/data/cifar10/cifar10_val.rec -O /mxnet/cifar10_val
 RUN wget http://data.mxnet.io/data/cifar10/cifar10_train.rec -O /mxnet/cifar10_train.rec
 
 # scripts
- COPY scripts/* /
+COPY scripts/* /
 CMD sleep 1000000000

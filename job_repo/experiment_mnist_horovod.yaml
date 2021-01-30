@@ -1,23 +1,23 @@
 metadata:
-  name: experiment-cifar10
-  modelname: resnet110
+  name: experiment-mnist
+  modelname: mxnet-mnist
   batch_size: 128
   scale_bs: True
   num_examples: 50000
-  dist_strategy: 'ps'
+  dist_strategy: 'horovod'
   tag: 0
 
 envs:
-  kv_store_big_array_bound: '1000000'
-  kv_store: dist_sync
+  kv_store_big_array_bound:
+  kv_store:
   ps_verbose:
-  prog_cmd: python train_cifar10.py --network resnet --num-layers 110 --disp-batches 25 --num-epochs 1 --data-train /data/cifar10_train.rec --data-val /data/cifar10_val.rec --gpus 0 --kv-store dist_sync
+  prog_cmd:
 
 resources:
   ps:
     num_ps: 0
-    ps_cpu : 3
-    ps_mem : 9
+    ps_cpu : 0
+    ps_mem : 0
     ps_bw : 0
   worker:
     num_worker: 0

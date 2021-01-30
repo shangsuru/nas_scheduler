@@ -17,17 +17,17 @@ def main():
     logging.info("start init process ...")
 
     logging.info("start training thread ...")
-    train = threading.Thread(target=(lambda: os.system("python3 /start.py")), args=())
+    train = threading.Thread(target=(lambda: os.system("python /mxnet_mnist.py")), args=())
     train.setDaemon(True)
     train.start()
 
     logging.info("start speed monitor thread ...")
-    speed_monitor = threading.Thread(target=(lambda: os.system("python3 /speed-monitor.py")), args=())
+    speed_monitor = threading.Thread(target=(lambda: os.system("python /speed-monitor.py")), args=())
     speed_monitor.setDaemon(True)
     speed_monitor.start()
 
     logging.info("start progress monitor thread ...")
-    progress_monitor = threading.Thread(target=(lambda: os.system("python3 /progress-monitor.py")), args=())
+    progress_monitor = threading.Thread(target=(lambda: os.system("python /progress-monitor.py")), args=())
     progress_monitor.setDaemon(True)
     progress_monitor.start()
 
