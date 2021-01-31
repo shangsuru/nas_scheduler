@@ -14,6 +14,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           sudo apt install redis
-          redis-server --port 30000
+          redis-server --daemonize yes --port 30000
       - name: Test with pytest
         run: python -m pytest
