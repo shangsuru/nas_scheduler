@@ -1,3 +1,5 @@
+from munch import munchify, Munch
+from typing import Any, Dict, List
 import yaml
 from .api import KubeAPI
 import config
@@ -9,7 +11,15 @@ k8s_api = KubeAPI()
 
 
 class Job:
-    def __init__(self, name, type, replica_id, image, job_conf, namespace=config.k8s_params["namespace"]):
+    def __init__(
+        self,
+        name: str,
+        type: str,
+        replica_id: int,
+        image: str,
+        job_conf: Munch,
+        namespace: dict = config.k8s_params["namespace"],
+    ) -> None:
         self.name = name
         self.uname = f"{name}-{type}-{replica_id}"
         self.type = type
@@ -20,7 +30,7 @@ class Job:
 
         self.k8s_job_obj = self._create_job_obj()
 
-    def __create_resources(self):
+    def __create_resources(self) -> client.V1ResourceRequirements:
         if self.type == "worker":
             limits = requests = {
                 "cpu": self.conf.get("worker_cpu"),
@@ -32,7 +42,7 @@ class Job:
 
         return client.V1ResourceRequirements(limits=limits, requests=requests)
 
-    def __create_volume_mounts(self):
+    def __create_volume_mounts(self) -> List[client.V1VolumeMount]:
         return [
             client.V1VolumeMount(mount_path=self.conf.get("work_dir"), name=self.conf.get("work_volume")),
             client.V1VolumeMount(mount_path=self.conf.get("data_dir"), name=self.conf.get("data_volume")),
@@ -40,7 +50,7 @@ class Job:
             client.V1VolumeMount(mount_path="/usr/local/nvidia/lib64", name="nvidia-lib64"),
         ]
 
-    def __create_envs(self):
+    def __create_envs(self) -> List[client.V1EnvVar]:
         return [
             client.V1EnvVar(name="JOB_NAME", value=self.name),
             client.V1EnvVar(name="DMLC_NUM_WORKER", value=str(self.conf.get("num_worker"))),
@@ -59,7 +69,7 @@ class Job:
             client.V1EnvVar(name="TRAINING_LOG_FILE", value=str(config.TRAINING_LOG_FILE)),
         ]
 
-    def __create_containers(self):
+    def __create_containers(self) -> List[client.V1Container]:
         return [
             client.V1Container(
                 name=self.name,
@@ -74,7 +84,7 @@ class Job:
             )
         ]
 
-    def __create_volumes(self):
+    def __create_volumes(self) -> List[client.V1Volume]:
         return [
             client.V1Volume(
                 name=self.conf.get("work_volume"),
@@ -98,7 +108,7 @@ class Job:
             ),
         ]
 
-    def _create_job_obj(self):
+    def _create_job_obj(self) -> client.V1Job:
         # Configure Pod template container
         container = self.__create_containers()
         volumes = self.__create_volumes()
@@ -123,7 +133,7 @@ class Job:
 
         return job_obj
 
-    def to_yaml(self, output="stdout"):
+    def to_yaml(self, output: str = "stdout") -> None:
         # This attribute map is to temporarily address the openapi bug in k8s. Should be fixed with next releases.
         correct_attribute_map = {
             "api_version": "apiVersion",

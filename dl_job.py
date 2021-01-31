@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import aiohttp
 import asyncio
 import concurrent
@@ -15,6 +17,7 @@ from k8s.job import Job
 from munch import munchify
 from log import logger
 from timer import Timer
+from typing import Dict, List, Tuple, Optional, Union
 from utils import fetch_with_timeout
 from uuid import uuid1
 
@@ -35,17 +38,17 @@ class DLJob:
         dir (str): job working directory as in '{dir_prefix}/{name}-{timestamp}/}'
     """
 
-    ps_placement: None
+    ps_placement: List[str]
 
-    def __init__(self, uid, tag, dir_prefix, conf):
+    def __init__(self, uid: int, tag: int, dir_prefix: str, conf: dict) -> None:
         """
         Initializes a job object.
         Args:
-            uid (int): job unique id -- incremental style
-            tag (int): unique index for the job. useful for identifying
+            uid: job unique id -- incremental style
+            tag: unique index for the job. useful for identifying
                 the job characteristic in the future.
-            dir_prefix (str): job working directory
-            conf (dict): job configuration dictionary
+            dir_prefix: job working directory
+            conf: job configuration dictionary
         """
         self.metadata = munchify(conf.get("metadata"))
         self.resources = munchify(conf.get("resources"))
@@ -61,40 +64,40 @@ class DLJob:
         self.timestamp = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
         self.dir = os.path.join(dir_prefix, f"{self.name}-{self.timestamp}")
 
-        self.ps_placement = None
-        self.worker_placement = None
+        self.ps_placement: List[str] = []
+        self.worker_placement: List[str] = []
 
-        self.speed_list = []
+        self.speed_list: List[float] = []
 
-        self.running_tasks = []
+        self.running_tasks: List[Job] = []
 
         # [(epoch, batch)]
-        self.progress_list = None
-        self.ps_metrics = []
-        self.worker_metrics = []
-        self.ps_pods = []
-        self.worker_pods = []
+        self.progress_list: Optional[List[Tuple[float, float]]] = None
+        self.ps_metrics: List[Dict[str, int]] = []
+        self.worker_metrics: List[Dict[str, int]] = []
+        self.ps_pods: List[Job] = []
+        self.worker_pods: List[Job] = []
 
         # for experiment
-        self.arrival_slot = None
-        self.arrival_time = None
-        self.end_slot = None
-        self.end_time = None
+        self.arrival_slot: int = 0
+        self.arrival_time: float = 0
+        self.end_slot: int = 0
+        self.end_time: float = 0
         self.status = "initialized"
-        self.progress = 0
+        self.progress: float = 0
 
         # (num_ps, num_worker): speed
-        self.training_speeds = dict()
+        self.training_speeds: Dict[Tuple[float, float], float] = dict()
 
         # epoch : validation_loss
-        self.val_losses = dict()
+        self.val_losses: Dict[str, Tuple[int, int]] = dict()
         self.num_epochs = 0
         self.epoch_size = 0
 
-        self.ps_cpu_diff = None
-        self.worker_cpu_diff = None
+        self.ps_cpu_diff: Optional[float] = None
+        self.worker_cpu_diff: Optional[float] = None
 
-        self.worker_mount_dirs = []
+        self.worker_mount_dirs: List[str] = []
 
     def __lt__(self, other):
         if not hasattr(other, "uid"):
@@ -111,12 +114,12 @@ class DLJob:
         return f"DLJob(name={self.name})"
 
     @staticmethod
-    def create_from_config_file(working_directory, config_file):
+    def create_from_config_file(working_directory: str, config_file: str) -> DLJob:
         """
         Creates a DLJob by reading its configuration from a yaml file.
         Args:
-            working_directory (str): working directory of the job
-            config_file (str): yaml file containing the job configuration
+            working_directory: working directory of the job
+            config_file: yaml file containing the job configuration
         """
         with open(config_file, "r") as f:
             job_config = yaml.full_load(f)
@@ -125,11 +128,11 @@ class DLJob:
         job.arrival_time = time.time()
         return job
 
-    def set_ps_placement(self, ps_placement):
+    def set_ps_placement(self, ps_placement: List[str]) -> None:
         """
         Setting the placement of parameter servers.
         Args:
-            ps_placement (list): list of parameter servers ip addresses
+            ps_placement: list of parameter servers ip addresses
         """
         if isinstance(ps_placement, list):
             if len(ps_placement) == self.resources.ps.num_ps:
@@ -139,7 +142,7 @@ class DLJob:
         else:
             raise TypeError("ps_placement is not a list")
 
-    def set_worker_placement(self, worker_placement):
+    def set_worker_placement(self, worker_placement: List[str]) -> None:
         """
         Setting the placement of workers.
         Args:
@@ -153,12 +156,15 @@ class DLJob:
         else:
             raise TypeError("worker_placement is not a list")
 
-    def __set_mount_dirs(self, type, host_workdir_prefix):
+    def __set_mount_dirs(self, type: str, host_workdir_prefix: str) -> List[str]:
         """
         Setting the directories on hosts to be mounted on containers
         Args:
-            type (str): 'ps' or 'worker'
-            host_workdir_prefix (str): host cwd prefix
+            type: 'ps' or 'worker'
+            host_workdir_prefix: host cwd prefix
+
+        Returns:
+            mount_dirs: list of directories, the job scripts should be mounted on the containers
         """
         mount_dirs = []
         if type == "ps":
@@ -179,7 +185,7 @@ class DLJob:
 
         return mount_dirs
 
-    def __set_batch_size(self):
+    def __set_batch_size(self) -> None:
         """
         Sets the batch size for training job.
         The batch size of each worker for sync training may be different
@@ -203,7 +209,7 @@ class DLJob:
         elif self.envs.kv_store == "dist_async":
             self.epoch_size = self.metadata.num_examples / self.metadata.batch_size / self.resources.worker.num_worker
 
-    def _create_jobs(self):
+    def _create_jobs(self) -> List[Job]:
         """Create Kubernetes job object"""
         job_conf_base = {
             "script": self.container.init_script,
@@ -254,7 +260,7 @@ class DLJob:
 
         return jobs
 
-    async def _read_data(self):
+    async def _read_data(self) -> None:
         """
         Read training data from localhost, otherwise from HDFS.
         A thread is created for each worker and tries to load the data.
@@ -277,7 +283,7 @@ class DLJob:
 
         await asyncio.gather(*proc_list)
 
-    async def _read_progress_stats(self):
+    async def _read_progress_stats(self) -> None:
         """Get the job progress from each worker."""
         progress_fn = "progress.txt"
 
@@ -304,11 +310,11 @@ class DLJob:
 
         await asyncio.gather(*coroutine_list)
 
-    async def get_training_progress_stats(self):
+    async def get_training_progress_stats(self) -> Tuple[Optional[List[Tuple[float, float]]], List[Tuple[int, int]]]:
         await self._read_progress_stats()
-        return (list(self.progress_list), list(self.val_loss_list))
+        return (self.progress_list, self.val_loss_list)
 
-    async def _read_training_speed(self):
+    async def _read_training_speed(self) -> None:
         """Get the job training speed from each worker"""
         self.speed_list = [0 for i in range(self.resources.worker.num_worker)]
 
@@ -326,11 +332,11 @@ class DLJob:
 
         await asyncio.gather(*coroutine_list)
 
-    async def get_training_speed(self):
+    async def get_training_speed(self) -> List[float]:
         await self._read_training_speed()
-        return list(self.speed_list)
+        return self.speed_list
 
-    def _get_pods_names(self):
+    def _get_pods_names(self) -> None:
         """
         Get the names of the pods belonging to the task
         NAME                                    READY     STATUS    RESTARTS   AGE
@@ -346,7 +352,7 @@ class DLJob:
             elif "worker" in pod_name:
                 self.worker_pods.append(pod_name)
 
-    async def _read_metrics(self):
+    async def _read_metrics(self) -> None:
         """Get the metrics of the pods for the job"""
         self._get_pods_names()
 
@@ -365,10 +371,11 @@ class DLJob:
             for metric_key in metric_keys:
                 url = f"http://{heapster_cluster_ip}/api/v1/model/namespaces/default/pods/{pod}/metrics/{metric_key}"
                 try:
-                    async with aiohttp.ClientSession as session:
-                        output = await session.get(url).json()
+                    async with aiohttp.ClientSession() as session:
+                        output = await session.get(url)
+                        output_json = await output.json()
                         # get latest value, maybe empty since heapster update metrics per minute
-                        metric_value = int(output["metrics"][-1]["value"])
+                        metric_value = int(output_json["metrics"][-1]["value"])
                 except:
                     # print "ERROR when requesting pod metrics!"
                     metric_value = 0
@@ -378,12 +385,12 @@ class DLJob:
             else:
                 self.worker_metrics.append(pod_metrics)
 
-    async def get_metrics(self):
+    async def get_metrics(self) -> Tuple[List[Dict[str, int]], List[Dict[str, int]]]:
         """Get job metrics"""
         await self._read_metrics()
-        return list(self.ps_metrics), list(self.worker_metrics)
+        return self.ps_metrics, self.worker_metrics
 
-    async def start(self):
+    async def start(self) -> None:
         """
         Start the job in k8s, with these steps:
         - Creating job directory
@@ -412,7 +419,7 @@ class DLJob:
         for job in self.running_tasks:
             k8s_api.submit_job(job.k8s_job_obj)
 
-    async def delete(self, del_all=False):
+    async def delete(self, del_all: bool = False) -> None:
         """Delete the job.
         Args:
             del_all (bool): whether to delete all, including histories.
@@ -446,7 +453,7 @@ class DLJob:
             # delete job working dir
             shutil.rmtree(self.dir)
 
-    def get_required_resources_per_node(self):
+    def get_required_resources_per_node(self) -> Dict[str, float]:
         """
         Calculates resource requirement per node. Encapsulates logic regarding
         dist_strategy so that individual schedulers don't have to.
@@ -465,7 +472,7 @@ class DLJob:
         required_gpu = self.resources.worker.worker_gpu
         return {"cpu": required_cpu, "mem": required_mem, "bw": required_bw, "gpu": required_gpu}
 
-    def get_total_required_resources(self):
+    def get_total_required_resources(self) -> Dict[str, float]:
         """Returns: dict containing the required amount of resources to host this job."""
         # if we use the dist_strategy ps we also need to count the resources required by the parameter servers
         required_cpu = (
@@ -484,7 +491,7 @@ class DLJob:
 
         return {"cpu": required_cpu, "mem": required_mem, "bw": required_bw, "gpu": required_gpu}
 
-    def increment_num_instances(self, increment=1):
+    def increment_num_instances(self, increment: int = 1) -> None:
         """
         Increments the num_worker. If job uses horovod, the num_ps is not incremented.
 

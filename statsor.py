@@ -1,7 +1,14 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from schedulers.scheduler_base import SchedulerBase
+
 import config
 import json
 import redis
 import time
+from cluster import Cluster
 from log import logger
 from progressor import Progressor
 
@@ -12,23 +19,25 @@ class Statsor:
     """
 
     tic = time.time()
-    end = None
+    end: float
+    cluster: Cluster
+    scheduler: SchedulerBase
 
     @staticmethod
-    def set_cluster_and_scheduler(cluster, scheduler):
+    def set_cluster_and_scheduler(cluster: Cluster, scheduler: SchedulerBase) -> None:
         """
         This method is called by daemon.py to give Statsor
         references to the scheduler and cluster objects.
 
         Args:
-            cluster (Cluster): used by statsor to have access to the resource utilization metrics
-            scheduler (Scheduler): used by statsor to have access to submitted and completted jobs
+            cluster: used by statsor to have access to the resource utilization metrics
+            scheduler: used by statsor to have access to submitted and completted jobs
         """
         Statsor.cluster = cluster
         Statsor.scheduler = scheduler
 
     @staticmethod
-    async def stats(t):
+    async def stats(t: int) -> None:
         logger.info(f"time slot: {t}")
         num_submit_jobs = len(Statsor.scheduler.uncompleted_jobs) + len(Statsor.scheduler.completed_jobs)
         num_completed_jobs = len(Statsor.scheduler.completed_jobs)

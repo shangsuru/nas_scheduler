@@ -1,21 +1,25 @@
 import abc
 import time
+
+from cluster import Cluster
+from dl_job import DLJob
 from log import logger
+from typing import List
 from queue import PriorityQueue
 
 
 class ResourceAllocator(metaclass=abc.ABCMeta):
-    def __init__(self, cluster):
-        self.cluster = cluster
+    def __init__(self, cluster: Cluster):
+        self.cluster: Cluster = cluster
 
-    def free_job_resources(self, job):
+    def free_job_resources(self, job: DLJob):
         for node in job.ps_placement:
             self.cluster.free_resources(job, "ps", 1, self.cluster.get_node_index(node))
         for node in job.worker_placement:
             self.cluster.free_resources(job, "worker", 1, self.cluster.get_node_index(node))
         logger.debug("freed up job resources")
 
-    def allocate(self, jobs):
+    def allocate(self, jobs: List[DLJob]):
         """
         Allocate resources for the given jobs.
         We place jobs in increasing order of their resource demand (i.e., smallest job first) in order
@@ -28,7 +32,7 @@ class ResourceAllocator(metaclass=abc.ABCMeta):
         Jobs which are not placed will be temporarily paused and rescheduled in the next scheduling interval.
 
         Args:
-            jobs (list[dl_job]): list of jobs to be allocated on the resources.
+            jobs : list of jobs to be allocated on the resources.
         Returns:
             ps_placements (dict of int: string): mapping of job.uid to the nodes used for allocating the ps
             worker_placements (list of int): mapping of job.uid to the nodes used for allocating the workers
@@ -66,5 +70,5 @@ class ResourceAllocator(metaclass=abc.ABCMeta):
         return ps_placements, worker_placements
 
     @abc.abstractmethod
-    def allocate_job(self, job):
+    def allocate_job(self, job: DLJob):
         pass

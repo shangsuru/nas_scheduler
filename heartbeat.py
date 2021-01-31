@@ -1,4 +1,9 @@
-import asyncio
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from schedulers.scheduler_base import SchedulerBase
+    from cluster import Cluster
 import time
 import config
 
@@ -20,12 +25,12 @@ class Heartbeat:
 
     heartbeat_interval = config.HEARTBEAT_INTERVAL_SEC
 
-    def __init__(self, scheduler, cluster, daemon=True):
+    def __init__(self, scheduler: SchedulerBase, cluster: Cluster, daemon: bool = True) -> None:
         self.cluster = cluster
         self.scheduler = scheduler
-        self.last_beat = 0
+        self.last_beat: float = 0
 
-    async def on_iteration(self):
+    async def on_iteration(self) -> None:
         """Emits a heartbeat if the last heartbeat was at least heartbeat_interval seconds ago."""
         if time.perf_counter() - self.last_beat < self.heartbeat_interval:
             return
@@ -34,7 +39,7 @@ class Heartbeat:
         self.last_beat = time.perf_counter()
 
     @staticmethod
-    def collect_failed_pods():
+    def collect_failed_pods() -> list:
         """Collects all failed pods.
 
         Returns:
@@ -49,7 +54,7 @@ class Heartbeat:
 
         return failed_pods
 
-    async def heartbeat(self):
+    async def heartbeat(self) -> None:
         """Performs a single heartbeat for failed pods and updates the cluster and scheduler accordingly."""
         failed_pods = self.collect_failed_pods()
 

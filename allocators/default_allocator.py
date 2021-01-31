@@ -1,13 +1,16 @@
 import config
 import numpy as np
+
 from .allocator_base import ResourceAllocator
+from cluster import Cluster
+from dl_job import DLJob
 
 
 class DefaultAllocator(ResourceAllocator):
-    def __init__(self, cluster):
+    def __init__(self, cluster: Cluster):
         super().__init__(cluster)
 
-    def allocate_job(self, job):
+    def allocate_job(self, job: DLJob):
         """
         Allocate resources for the given job.
         Given the numbers of workers and parameter servers in a synchronous training job,
@@ -88,7 +91,7 @@ class DefaultAllocator(ResourceAllocator):
 
         return ps_nodes, worker_nodes
 
-    def get_min_req_node_amount(self, job):
+    def get_min_req_node_amount(self, job: DLJob):
         """
         Given a job, this method will return the amount of empty nodes required to host this job.
         Args:

@@ -18,10 +18,14 @@
 import mxnet as mx
 import numpy as np
 import random
+
+from argparse import ArgumentParser, Namespace, _ArgumentGroup
 from mxnet.io import DataBatch, DataIter
+from mxnet.kvstore import KVStore
+from numpy.lib.type_check import typename
 
 
-def add_data_args(parser):
+def add_data_args(parser: ArgumentParser) -> _ArgumentGroup:
     data = parser.add_argument_group("Data", "the input images")
     data.add_argument("--data-train", type=str, help="the training data")
     data.add_argument("--data-val", type=str, help="the validation data")
@@ -37,7 +41,7 @@ def add_data_args(parser):
     return data
 
 
-def add_data_aug_args(parser):
+def add_data_aug_args(parser: ArgumentParser):
     aug = parser.add_argument_group("Image augmentations", "implemented in src/io/image_aug_default.cc")
     aug.add_argument("--random-crop", type=int, default=1, help="if or not randomly crop the image")
     aug.add_argument("--random-mirror", type=int, default=1, help="if or not randomly flip horizontally")
@@ -63,7 +67,7 @@ def add_data_aug_args(parser):
     return aug
 
 
-def set_data_aug_level(aug, level):
+def set_data_aug_level(aug: ArgumentParser, level: int):
     if level >= 1:
         aug.set_defaults(random_crop=1, random_mirror=1)
     if level >= 2:
@@ -73,7 +77,7 @@ def set_data_aug_level(aug, level):
 
 
 class SyntheticDataIter(DataIter):
-    def __init__(self, num_classes, data_shape, max_iter, dtype):
+    def __init__(self, num_classes: int, data_shape: tuple, max_iter: int, dtype: type):
         self.batch_size = data_shape[0]
         self.cur_iter = 0
         self.max_iter = max_iter
@@ -89,18 +93,18 @@ class SyntheticDataIter(DataIter):
         self.data = mx.nd.array(data, dtype=self.dtype, ctx=mx.Context("cpu_pinned", 0))
         self.label = mx.nd.array(label, dtype=self.dtype, ctx=mx.Context("cpu_pinned", 0))
 
-    def __iter__(self):
+    def __iter__(self) -> None:
         return self
 
     @property
-    def provide_data(self):
+    def provide_data(self) -> list[mx.io.DataDesc]:
         return [mx.io.DataDesc("data", self.data.shape, self.dtype)]
 
     @property
-    def provide_label(self):
+    def provide_label(self) -> list[mx.io.DataDesc]:
         return [mx.io.DataDesc("softmax_label", (self.batch_size,), self.dtype)]
 
-    def next(self):
+    def next(self) -> DataBatch:
         self.cur_iter += 1
         if self.cur_iter <= self.max_iter:
             return DataBatch(
@@ -114,14 +118,14 @@ class SyntheticDataIter(DataIter):
         else:
             raise StopIteration
 
-    def __next__(self):
+    def __next__(self) -> DataBatch:
         return self.next()
 
-    def reset(self):
+    def reset(self) -> None:
         self.cur_iter = 0
 
 
-def get_rec_iter(args, kv=None):
+def get_rec_iter(args: Namespace, kv: KVStore = None) -> tuple[mx.DataIter]:
     image_shape = tuple([int(l) for l in args.image_shape.split(",")])
     if "benchmark" in args and args.benchmark:
         data_shape = (args.batch_size,) + image_shape

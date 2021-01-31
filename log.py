@@ -10,7 +10,7 @@ class LogFormatter(logging.Formatter):
     def __init__(self):
         super().__init__(fmt="%(levelno)d: %(msg)s", datefmt=None, style="%")
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
         # Save the original format configured by the user
         # when the logger formatter was instantiated
         format_orig = self._style._fmt
@@ -34,7 +34,7 @@ class LogFormatter(logging.Formatter):
         return result
 
 
-def get_logger(name="logger_obj", level="INFO", mode="w"):
+def get_logger(name: str = "logger_obj", level: str = "INFO", mode: str = "w") -> logging.Logger:
     logger_obj = logging.getLogger(name)
 
     fh = logging.FileHandler(name + ".log", mode)
