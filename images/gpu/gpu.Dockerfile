@@ -5,6 +5,7 @@ FROM localhost:5000/k8s-mxnet-gpu-base
 COPY scripts/train_mnist.py /mxnet/example/image-classification/
 COPY scripts/train_cifar10.py /mxnet/example/image-classification/
 COPY scripts/train_imagenet.py /mxnet/example/image-classification/
+COPY scripts/mxnet_mnist.py /mxnet/example/image-classification/
 COPY scripts/fit.py /mxnet/example/image-classification/common/
 COPY scripts/data.py /mxnet/example/image-classification/common/
 RUN mkdir -p /mxnet/example/image-classification/data

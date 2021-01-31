@@ -17,7 +17,7 @@ def main():
     logging.info("start init process ...")
 
     logging.info("start training thread ...")
-    train = threading.Thread(target=(lambda: os.system("horovodrun -np 1 python /mxnet_mnist.py")), args=())
+    train = threading.Thread(target=(lambda: os.system("python /start.py")), args=())
     train.setDaemon(True)
     train.start()
 

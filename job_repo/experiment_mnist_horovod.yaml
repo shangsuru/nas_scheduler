@@ -1,17 +1,17 @@
 metadata:
   name: experiment-mnist
   modelname: mxnet-mnist
-  batch_size: 128
+  batch_size: 64
   scale_bs: True
   num_examples: 50000
-  dist_strategy: 'ps'
+  dist_strategy: 'allreduce'
   tag: 0
 
 envs:
   kv_store_big_array_bound: "1000000"
-  kv_store: dist_sync
+  kv_store:
   ps_verbose:
-  prog_cmd: python3 train_cifar10.py --network resnet --num-layers 110 --disp-batches 25 --num-epochs 1 --data-train /data/cifar10_train.rec --data-val /data/cifar10_val.rec --gpus 0 --kv-store dist_sync
+  prog_cmd: horovodrun -np 1 python mxnet_mnist.py
 
 resources:
   ps:
@@ -35,8 +35,8 @@ data:
   data_dir: /data/
 
   host_workdir_prefix: /data/k8s-workdir/experiment/
-  hdfs_data: /k8s-mxnet/cifar10/cifar10_train.rec
-  host_data_dir: /data/mxnet-data/cifar10/
+  hdfs_data: /k8s-mxnet/mnist/mnist_train.rec
+  host_data_dir: /data/mxnet-data/mnist/
 
   data_mounted: True
 

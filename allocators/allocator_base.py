@@ -52,7 +52,7 @@ class ResourceAllocator(metaclass=abc.ABCMeta):
             # check if node resource can satisfy the job's resource requirements
             ps_nodes, worker_nodes = self.allocate_job(job)
 
-            if len(ps_nodes) > 0 and len(worker_nodes) > 0:
+            if (len(ps_nodes) > 0 or job.metadata.dist_strategy == "allreduce") and len(worker_nodes) > 0:
                 # in this case the resources were successfully allocated
                 ps_placements[job.uid] = [self.cluster.nodes[node] for node in ps_nodes]
                 job.resources.ps.num_ps = len(ps_placements[job.uid])

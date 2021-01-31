@@ -27,7 +27,7 @@ resources:
     worker_bw: 0
 
 container:
-  image: localhost:5000/k8s-mxnet-gpu-full
+  image: localhost:5000/k8s-mxnet-gpu-full-h
   init_script: /init.sh
 
 data:
