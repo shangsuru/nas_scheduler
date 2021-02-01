@@ -1,3 +1,4 @@
+from kubernetes.client.models.v1_env_var import V1EnvVar
 from munch import munchify, Munch
 from typing import Any, Dict, List
 import yaml

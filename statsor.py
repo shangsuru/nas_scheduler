@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from schedulers.scheduler_base import SchedulerBase
@@ -19,7 +19,7 @@ class Statsor:
     """
 
     tic = time.time()
-    end: float
+    end: Optional[float] = None
     cluster: Cluster
     scheduler: SchedulerBase
 

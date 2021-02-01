@@ -301,8 +301,10 @@ class DLJob:
 
                 self.progress_list[i] = (progress_epoch, progress_batch)
                 self.val_loss_list[i] = val_loss
+            except TimeoutError:
+                logger.error(f"Failed to read training metrics from redis: TIMEOUT")
             except Exception as e:
-                logger.error("Failed to read training metrics from redis:", str(e))
+                logger.error(f"Failed to read training metrics from redis: {str(e)}")
 
         coroutine_list = []
         for i in range(self.resources.worker.num_worker):
@@ -323,8 +325,10 @@ class DLJob:
                 self.speed_list[i] = await fetch_with_timeout(
                     redis_connection, f"{self.name}-stb_speed", 1000, cast=lambda x: float(str(x.decode("utf-8")))
                 )
+            except TimeoutError:
+                logger.error(f"Failed to read training metrics from redis: TIMEOUT")
             except Exception as e:
-                logger.error("Failed to read training metrics from redis:", str(e))
+                logger.error(F"Failed to read training metrics from redis: {str(e)}")
 
         coroutine_list = []
         for i in range(self.resources.worker.num_worker):
@@ -376,7 +380,8 @@ class DLJob:
                         output_json = await output.json()
                         # get latest value, maybe empty since heapster update metrics per minute
                         metric_value = int(output_json["metrics"][-1]["value"])
-                except:
+                except Exception as e:
+                    logger.error(F"Failed to read training metrics from redis: output_json={output_json}, {str(e)}")
                     # print "ERROR when requesting pod metrics!"
                     metric_value = 0
                 pod_metrics[metric_key] = metric_value
