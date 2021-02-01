@@ -4,13 +4,14 @@ import numpy as np
 from .allocator_base import ResourceAllocator
 from cluster import Cluster
 from dl_job import DLJob
+from typing import Tuple, List
 
 
 class DefaultAllocator(ResourceAllocator):
-    def __init__(self, cluster: Cluster):
+    def __init__(self, cluster: Cluster) -> None:
         super().__init__(cluster)
 
-    def allocate_job(self, job: DLJob):
+    def allocate_job(self, job: DLJob) -> Tuple[List[int], List[int]]:
         """
         Allocate resources for the given job.
         Given the numbers of workers and parameter servers in a synchronous training job,
@@ -28,10 +29,10 @@ class DefaultAllocator(ResourceAllocator):
         and worker_nodes are returned empty.
 
         Args:
-            job (DLJob): job to be allocated
+            job: job to be allocated
         Returns:
-            ps_nodes (list of int): node indexes used to allocate the resources for the parameter servers
-            worker_nodes (list of int): node indexes used to allocate the resources for the workers
+            ps_nodes: node indexes used to allocate the resources for the parameter servers
+            worker_nodes: node indexes used to allocate the resources for the workers
         """
         ps_nodes = []
         worker_nodes = []  # these will be filled with the used nodes for hosting the job
@@ -91,13 +92,13 @@ class DefaultAllocator(ResourceAllocator):
 
         return ps_nodes, worker_nodes
 
-    def get_min_req_node_amount(self, job: DLJob):
+    def get_min_req_node_amount(self, job: DLJob) -> int:
         """
         Given a job, this method will return the amount of empty nodes required to host this job.
         Args:
             job (DLJob): job to be allocated
         Returns:
-            int: minimal required node amount to host the job
+            minimal required node amount to host the job
         """
         required_resources = job.get_total_required_resources()
 

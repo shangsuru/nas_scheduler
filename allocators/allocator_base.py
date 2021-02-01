@@ -4,22 +4,22 @@ import time
 from cluster import Cluster
 from dl_job import DLJob
 from log import logger
-from typing import List
+from typing import List, Dict, Tuple
 from queue import PriorityQueue
 
 
 class ResourceAllocator(metaclass=abc.ABCMeta):
-    def __init__(self, cluster: Cluster):
+    def __init__(self, cluster: Cluster) -> None:
         self.cluster: Cluster = cluster
 
-    def free_job_resources(self, job: DLJob):
+    def free_job_resources(self, job: DLJob) -> None:
         for node in job.ps_placement:
             self.cluster.free_resources(job, "ps", 1, self.cluster.get_node_index(node))
         for node in job.worker_placement:
             self.cluster.free_resources(job, "worker", 1, self.cluster.get_node_index(node))
         logger.debug("freed up job resources")
 
-    def allocate(self, jobs: List[DLJob]):
+    def allocate(self, jobs: List[DLJob]) -> Tuple[Dict[int, List[str]], Dict[int, List[str]]]:
         """
         Allocate resources for the given jobs.
         We place jobs in increasing order of their resource demand (i.e., smallest job first) in order
@@ -34,8 +34,8 @@ class ResourceAllocator(metaclass=abc.ABCMeta):
         Args:
             jobs : list of jobs to be allocated on the resources.
         Returns:
-            ps_placements (dict of int: string): mapping of job.uid to the nodes used for allocating the ps
-            worker_placements (list of int): mapping of job.uid to the nodes used for allocating the workers
+            ps_placements: mapping of job.uid to the nodes used for allocating the ps
+            worker_placements: mapping of job.uid to the nodes used for allocating the workers
         """
         tic = time.time()
 
@@ -43,7 +43,7 @@ class ResourceAllocator(metaclass=abc.ABCMeta):
         jobs = [job for job in jobs if not (job.resources.worker.num_worker == 0 and job.resources.ps.num_ps == 0)]
 
         # sort jobs ascending based on num_ps and num_worker (smallest job first)
-        sorted_job_queue = PriorityQueue()
+        sorted_job_queue: PriorityQueue = PriorityQueue()
         for job in jobs:
             resource_usage = job.resources.ps.num_ps + job.resources.worker.num_worker
             sorted_job_queue.put((resource_usage, job))
@@ -70,5 +70,5 @@ class ResourceAllocator(metaclass=abc.ABCMeta):
         return ps_placements, worker_placements
 
     @abc.abstractmethod
-    def allocate_job(self, job: DLJob):
+    def allocate_job(self, job: DLJob) -> Tuple[List[int], List[int]]:
         pass
