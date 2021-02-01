@@ -49,7 +49,7 @@ class TestMonitor:
         # create temporary log file
         logfile = open("./training.log", "w+")
         self.monitor.run()
-        time.sleep(0.05)
+        time.sleep(0.5)
 
         # replicate metrics stored in Monitor/TrainingWatcher
         speed_list = []
@@ -71,7 +71,7 @@ class TestMonitor:
                 )
                 logfile.write(log)
                 logfile.flush()
-                time.sleep(0.01)
+                time.sleep(0.5)
 
                 # check metrics calculation for speed
                 avg_speed = sum(speed_list) / len(speed_list)
@@ -102,7 +102,7 @@ class TestMonitor:
             )
             logfile.write(log)
             logfile.flush()
-            time.sleep(0.01)
+            time.sleep(0.5)
 
             assert epoch == int(self.redis_connection.get("TESTMONITOR-progress_epoch"))
             assert -1 == int(self.redis_connection.get("TESTMONITOR-progress_batch"))
