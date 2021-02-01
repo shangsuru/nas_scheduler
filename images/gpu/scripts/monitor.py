@@ -180,12 +180,12 @@ class TrainingWatcher(PatternMatchingEventHandler):
         self.epoch = 0
         self.filesize = 0
         self.keys = [
-            f"{JOB_NAME}-{REPLICA_ID}-progress",
-            f"{JOB_NAME}-{REPLICA_ID}-train_acc",
-            f"{JOB_NAME}-{REPLICA_ID}-train-loss",
-            f"{JOB_NAME}-{REPLICA_ID}-val-acc",
-            f"{JOB_NAME}-{REPLICA_ID}-val-loss",
-            f"{JOB_NAME}-{REPLICA_ID}-time-cost",
+            "{}-{}-progress".format(JOB_NAME, REPLICA_ID),
+            "{}-{}-train_acc".format(JOB_NAME, REPLICA_ID),
+            "{}-{}-train-loss".format(JOB_NAME, REPLICA_ID),
+            "{}-{}-val-acc".format(JOB_NAME, REPLICA_ID),
+            "{}-{}-val-loss".format(JOB_NAME, REPLICA_ID),
+            "{}-{}-time-cost".format(JOB_NAME, REPLICA_ID),
         ]
         self.logfile = str(os.getenv("TRAINING_LOG_DIR")) + str(os.getenv("TRAINING_LOG_FILE"))
         self.last_change = 0
@@ -210,8 +210,8 @@ class TrainingWatcher(PatternMatchingEventHandler):
             self.parser = CustomParser()
 
         # Set default values
-        self.redis_connection.set(f"{JOB_NAME}-{REPLICA_ID}-stb_speed", 0)
-        self.redis_connection.set(f"{JOB_NAME}-{REPLICA_ID}-avg_speed", 0)
+        self.redis_connection.set("{}-{}-stb_speed".format(JOB_NAME, REPLICA_ID), 0)
+        self.redis_connection.set("{}-{}-avg_speed".format(JOB_NAME, REPLICA_ID), 0)
         for key in self.keys:
             self.redis_connection.set(key, 0)
 
