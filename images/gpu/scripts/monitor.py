@@ -89,12 +89,12 @@ class TrainingWatcher(PatternMatchingEventHandler):
         self.epoch = 0
         self.filesize = 0
         self.keys = [
-            "{}-progress".format(JOB_NAME),
-            "{}-train_acc".format(JOB_NAME),
-            "{}-train-loss".format(JOB_NAME),
-            "{}-val-acc".format(JOB_NAME),
-            "{}-val-loss".format(JOB_NAME),
-            "{}-time-cost".format(JOB_NAME),
+            "{}-{}-progress".format(JOB_NAME, REPLICA_ID),
+            "{}-{}-train_acc".format(JOB_NAME, REPLICA_ID),
+            "{}-{}-train-loss".format(JOB_NAME, REPLICA_ID),
+            "{}-{}-val-acc".format(JOB_NAME, REPLICA_ID),
+            "{}-{}-val-loss".format(JOB_NAME, REPLICA_ID),
+            "{}-{}-time-cost".format(JOB_NAME, REPLICA_ID),
         ]
         self.logfile = str(os.getenv("TRAINING_LOG_DIR")) + str(os.getenv("TRAINING_LOG_FILE"))
         self.last_change = 0
@@ -118,8 +118,8 @@ class TrainingWatcher(PatternMatchingEventHandler):
         self._time_cost_pattern = re.compile(r"Time cost=(?P<time_cost>\d+.\d+)")
 
         # Set default values
-        self.redis_connection.set("{}-stb_speed".format(JOB_NAME), 0)
-        self.redis_connection.set("{}-avg_speed".format(JOB_NAME), 0)
+        self.redis_connection.set("{}-{}-stb_speed".format(JOB_NAME, REPLICA_ID), 0)
+        self.redis_connection.set("{}-{}-avg_speed".format(JOB_NAME, REPLICA_ID), 0)
         for key in self.keys:
             self.redis_connection.set(key, 0)
 

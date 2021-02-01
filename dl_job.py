@@ -446,6 +446,11 @@ class DLJob:
             # delete job working dir
             shutil.rmtree(self.dir)
 
+        # delete redis keys for that job
+        for key in redis_connection.keys(f"{self.uid}*"):
+            redis_connection.delete(key)
+
+
     def get_required_resources_per_node(self):
         """
         Calculates resource requirement per node. Encapsulates logic regarding
