@@ -1,4 +1,4 @@
-name: check-style
+name: static-type-checking
 on: [push, pull_request]
 jobs:
   type-checks:
@@ -13,5 +13,4 @@ jobs:
         run: python -m pip install --upgrade pip
           pip install mypy
       - name: Run mypy
-        run: mypy daemon.py
-          mypy client.py
+        run: mypy daemon.py client.py
