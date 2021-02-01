@@ -37,7 +37,7 @@ class Client:
         self.channel = self.redis_connection.pubsub()
         self.channel.psubscribe("daemon")
 
-    def listen(self) -> bytes:
+    def listen(self) -> dict:
         """Listens for a response from the daemon and returns the data"""
         for msg in self.channel.listen():
             if msg["type"] != "psubscribe":
@@ -68,7 +68,7 @@ class Client:
         """Sends a top message to the daemon and prints a single view for all the jobs running on the cluster"""
         self.redis_connection.publish("client", json.dumps({"command": "top", "args": None}))
         headers = ["id", "name", "total progress/total epochs", "sum_speed(batches/second)"]
-        print(tabulate(self.listen(), headers=headers))
+        print(tabulate(dict(self.listen()), headers=headers))
 
     def status(self, uid: int) -> None:
         """Sends a status message to the daemon and prints in-depth metrics of the job with the given id
