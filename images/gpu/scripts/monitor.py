@@ -21,6 +21,7 @@ WORK_DIR = os.getenv("WORK_DIR")
 JOB_NAME = os.getenv("JOB_NAME")
 REDIS_HOST = os.getenv("REDIS_HOST")
 REDIS_PORT = os.getenv("REDIS_PORT")
+REPLICA_ID = os.getenv("REPLICA_ID")
 
 
 class Monitor:
@@ -176,14 +177,14 @@ class TrainingWatcher(PatternMatchingEventHandler):
 
         if len(self.time_cost) != 0:
             print(self.epoch)
-            self.redis_connection.set("{}-progress_epoch".format(JOB_NAME), self.epoch)
-            self.redis_connection.set("{}-progress_batch".format(JOB_NAME), self.batch)
-            self._set_dictionary("{}-train-acc".format(JOB_NAME), self.train_acc)
-            self._set_dictionary("{}-train-loss".format(JOB_NAME), self.train_loss)
-            self._set_dictionary("{}-val-acc".format(JOB_NAME), self.val_acc)
-            self._set_dictionary("{}-val-loss".format(JOB_NAME), self.val_loss)
+            self.redis_connection.set("{}-{}-progress_epoch".format(JOB_NAME, REPLICA_ID), self.epoch)
+            self.redis_connection.set("{}-{}-progress_batch".format(JOB_NAME, REPLICA_ID), self.batch)
+            self._set_dictionary("{}-{}-train-acc".format(JOB_NAME, REPLICA_ID), self.train_acc)
+            self._set_dictionary("{}-{}-train-loss".format(JOB_NAME, REPLICA_ID), self.train_loss)
+            self._set_dictionary("{}-{}-val-acc".format(JOB_NAME, REPLICA_ID), self.val_acc)
+            self._set_dictionary("{}-{}-val-loss".format(JOB_NAME, REPLICA_ID), self.val_loss)
             self.redis_connection.set(
-                "{}-time-cost".format(JOB_NAME), sum(self.time_cost.values()) / len(self.time_cost)
+                "{}-{}-time-cost".format(JOB_NAME), sum(self.time_cost.values()) / len(self.time_cost)
             )
 
             logging.info(
@@ -216,8 +217,8 @@ class TrainingWatcher(PatternMatchingEventHandler):
 
             logging.info("Stable Training Speed: " + str(stb_speed))
 
-            self.redis_connection.set("{}-avg_speed".format(JOB_NAME), avg_speed)
-            self.redis_connection.set("{}-stb_speed".format(JOB_NAME), stb_speed)
+            self.redis_connection.set("{}-{}-avg_speed".format(JOB_NAME, REPLICA_ID), avg_speed)
+            self.redis_connection.set("{}-{}-stb_speed".format(JOB_NAME, REPLICA_ID), stb_speed)
 
     def parse_epoch(self, string):
         """

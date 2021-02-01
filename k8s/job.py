@@ -45,6 +45,7 @@ class Job:
             client.V1EnvVar(name="JOB_NAME", value=self.name),
             client.V1EnvVar(name="DMLC_NUM_WORKER", value=str(self.conf.get("num_worker"))),
             client.V1EnvVar(name="DMLC_NUM_SERVER", value=str(self.conf.get("num_ps"))),
+            client.V1EnvVar(name="REPLICA_ID", value=str(self.replica_id)),
             client.V1EnvVar(name="ROLE", value=self.type),
             client.V1EnvVar(name="PROG", value=self.conf.get("prog")),
             client.V1EnvVar(name="WORK_DIR", value=self.conf.get("work_dir")),
