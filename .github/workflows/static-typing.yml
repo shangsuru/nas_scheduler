@@ -13,4 +13,4 @@ jobs:
         run: python -m pip install --upgrade pip
           pip install mypy
       - name: Run mypy
-        run: mypy daemon.py client.py
+        run: mypy daemon.py client.py --ignore-missing-imports
