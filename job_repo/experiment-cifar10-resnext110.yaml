@@ -11,7 +11,7 @@ envs:
   kv_store_big_array_bound: "1000000"
   kv_store: dist_sync
   ps_verbose:
-  prog_cmd: python train_cifar10.py --network resnet --num-layers 110 --disp-batches 25 --num-epochs 1 --data-train /data/cifar10_train.rec --data-val /data/cifar10_val.rec --gpus 0 --kv-store dist_sync
+  prog_cmd: python train_cifar10.py --network resnet --num-layers 50 --disp-batches 10 --num-epochs 1 --data-train /data/cifar10_train.rec --data-val /data/cifar10_val.rec --gpus 0 --kv-store dist_sync
 
 resources:
   ps:
@@ -27,7 +27,7 @@ resources:
     worker_bw: 0
 
 container:
-  image: localhost:5000/k8s-mxnet-gpu-full-h
+  image: localhost:5000/k8s-mxnet-gpu-full
   init_script: /init.sh
 
 data:

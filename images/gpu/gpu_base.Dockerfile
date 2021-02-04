@@ -87,4 +87,13 @@ RUN apt-get install -y --no-install-recommends subversion && \
     svn checkout https://github.com/horovod/horovod/trunk/examples && \
     rm -rf /examples/.svn
 
+# Install redis and wachdog
+RUN pip install redis watchdog
+
+# Install dependencies for the mxnet_mnist.py testkript
+RUN pip uninstall -y typing
+RUN pip install gluoncv
+RUN pip install horovod[mxnet-cu100]
+
+
 WORKDIR "/examples"

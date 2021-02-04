@@ -1,3 +1,5 @@
+# build based on an official mage from https://hub.docker.com/r/horovod/horovod/tags?page=1&ordering=last_updated
+# preparing all necessary init scripts and training example
 FROM localhost:5000/k8s-mxnet-gpu-base
 
 # image-classification
@@ -12,18 +14,6 @@ RUN mkdir -p /mxnet/example/image-classification/data
 
 # correcting paths
 ENV PYTHONPATH $PYTHONPATH:/mxnet/example/image-classification/
-# Install mxnet 1.7.0
-
-#RUN pip install mxnet-cu100==1.7.0
-RUN pip install redis watchdog
-
-
-# Install dependencies for the mxnet_mnist.py testkript
-#RUN pip install horovod[mxnet]
-RUN pip uninstall -y typing
-RUN pip install gluoncv
-
-RUN pip install horovod[mxnet-cu100]
 
 # Get resnet model
 RUN mkdir -p /mxnet/example/image-classification/symbols
