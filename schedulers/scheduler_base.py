@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import abc
 import asyncio
+from dl_job import DLJob
 import time
 from allocators.default_allocator import DefaultAllocator
 from log import logger
@@ -7,10 +10,11 @@ from progressor import Progressor
 from queue import PriorityQueue
 from statsor import Statsor
 from timer import Timer
+from typing import List
 
 
 class SchedulerBase(metaclass=abc.ABCMeta):
-    def __init__(self, cluster):
+    def __init__(self, cluster: SchedulerBase) -> None:
         self.cluster = cluster
         self.allocator: DefaultAllocator
 
@@ -24,13 +28,13 @@ class SchedulerBase(metaclass=abc.ABCMeta):
         self.scaling_overhead = 0
         self.testing_overhead = 0
 
-    def submit_job(self, job):
+    def submit_job(self, job: DLJob) -> None:
         job.status = "queueing"
         # priority queue based on arrival time
         self.queueing_jobs.put((job.arrival_time, job))
         self.uncompleted_jobs.append(job)
 
-    async def stop(self):
+    async def stop(self) -> None:
         logger.debug(f"delete unfinished jobs...")
         thread_list = []
         for job in self.uncompleted_jobs:
@@ -40,7 +44,7 @@ class SchedulerBase(metaclass=abc.ABCMeta):
     def _schedule(self):
         pass
 
-    async def init_schedule(self):
+    async def init_schedule(self) -> None:
         self._schedule()
 
         # placement
@@ -76,14 +80,14 @@ class SchedulerBase(metaclass=abc.ABCMeta):
             self.cur_ts_completed_jobs.append(finished_job)
         await self._delete()
 
-    async def __run(self, job, ps_placement, worker_placement):
+    async def __run(self, job: DLJob, ps_placement: List[str], worker_placement: List[str]) -> None:
         """
         Run a given job with given ps and worker placements
 
         Args:
-            job (DLJob): job instance
-            ps_placement (list): list of ps nodes, i.e. ip addresses
-            worker_placement (list): list of worker nodes, i.e. ip addresses
+            job: job instance
+            ps_placement: list of ps nodes, i.e. ip addresses
+            worker_placement: list of worker nodes, i.e. ip addresses
         """
         logger.debug(
             f"running {job.name}, dist_strategy: {job.metadata.dist_strategy}, num_ps: {job.resources.ps.num_ps}, \
@@ -97,7 +101,7 @@ class SchedulerBase(metaclass=abc.ABCMeta):
         await job.start()
         Progressor.add_to_running_jobs(job)
 
-    async def remove_job(self, job, reschedule=False):
+    async def remove_job(self, job: DLJob, reschedule: bool = False) -> None:
         """Removes a queued or running job from the scheduler.
 
         Args:
@@ -121,7 +125,7 @@ class SchedulerBase(metaclass=abc.ABCMeta):
         job.status = "failed"
         self.uncompleted_jobs.remove(job)
 
-    async def _delete(self):
+    async def _delete(self) -> None:
         """Delete all the jobs in the current timestamp of scheduler, including running and completed jobs."""
         delete_tic = time.time()
         stopping_jobs = []

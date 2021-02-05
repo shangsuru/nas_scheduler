@@ -1,4 +1,5 @@
 import aioredis
+from aioredis import ConnectionsPool
 import asyncio
 import config
 import json
@@ -8,6 +9,7 @@ from dl_job import DLJob
 from k8s.api import KubeAPI
 from log import logger
 from progressor import Progressor
+from typing import Any, List, Tuple, Optional, Union
 from schedulers.drf import DRFScheduler
 from schedulers.fifo import FIFOScheduler
 from schedulers.optimus import OptimusScheduler
@@ -19,7 +21,7 @@ from timer import Timer
 k8s_api = KubeAPI()
 
 
-async def main():
+async def main() -> None:
     k8s_api.clear_jobs()
     cluster = Cluster()
 
@@ -39,7 +41,7 @@ async def main():
     await listen(scheduler, heartbeat)
 
 
-async def setup_redis_connection():
+async def setup_redis_connection() -> Tuple[aioredis.ConnectionsPool, aioredis.Channel]:
     """
     Creates a a connection to the redis database and subscribes to
     the client channel.
@@ -57,7 +59,7 @@ async def setup_redis_connection():
     return redis_connection, channel
 
 
-async def listen(scheduler: SchedulerBase, heartbeat: Heartbeat):
+async def listen(scheduler: SchedulerBase, heartbeat: Heartbeat) -> None:
     """Main loop of the daemon waiting for client input
     Args:
         scheduler (SchedulerBase): Scheduler instance managing and scheduling
@@ -183,28 +185,28 @@ async def listen(scheduler: SchedulerBase, heartbeat: Heartbeat):
                 pass  # TODO
 
 
-async def send(redis_connection, response, args: list = None):
+async def send(redis_connection: ConnectionsPool, response: str, args: Any = None) -> None:
     """
     Sends given response with given args from daemon back to client
 
     Args:
-    redis_connection (aioredis.ConnectionsPool): Redis connection instance which the redis server
+    redis_connection: Redis connection instance which the redis server
         can be interacted with
-    response (str): Type of the response to client command
-    args (list): Arguments associated with response, if None no arguments
+    response: Type of the response to client command
+    args: Arguments associated with response, if None no arguments
             are given to the command
     """
     await redis_connection.publish("daemon", json.dumps({"response": response, "args": args}))
 
 
-def _get_command_args(message: str):  # -> tuple[str, str]
+def _get_command_args(message: str) -> Tuple[str, str]:
     """
     Parses received message from client into command and arguments part
     Args:
-        messsage (str): Message received from client
+        messsage: Message received from client
     Returns:
-        payload['command'] (str): Command part of the client message
-        payload['args'] (str): Arguments part of the client message
+        payload['command']: Command part of the client message
+        payload['args']: Arguments part of the client message
     """
     payload = json.loads(message)
     return payload["command"], payload["args"]

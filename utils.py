@@ -1,13 +1,15 @@
 import asyncio
 import functools
+import redis
+from typing import Any, Callable, List
 
 
-def list_to_str(listofstr):
+def list_to_str(listofstr: List[str]) -> str:
     return ",".join(listofstr)
 
 
 class objectview(object):
-    def __init__(self, d):
+    def __init__(self, d: dict) -> None:
         if d is None:
             self.__dict__ = {}
         else:
@@ -34,22 +36,24 @@ def rgetattr(obj, attr, *args):
     return functools.reduce(_getattr, [obj] + attr.split("."))
 
 
-def dict_to_str(dict_obj):
+def dict_to_str(dict_obj: dict) -> str:
     """
     Converts dict object to a string of key=values separated by commas
     """
     return ", ".join(f"{key}={val}" for (key, val) in dict_obj.items())
 
 
-async def fetch_with_timeout(redis_connection, key, timeout, num_retries=100, cast=None):
+async def fetch_with_timeout(
+    redis_connection: redis.Redis, key: str, timeout: float, num_retries: int = 100, cast: Callable[[Any], Any] = None
+) -> Any:
     """
     Used when it is required to fetch a key from redis with a timeout
 
     Args:
         redis_connection: connection to the redis database
-        key (str): key for the value to be fetched from redis
-        timeout (float): time (in ms) until a subsequent attempt to fetch the key
-        num_retries (int): number of attempts to fetch the key
+        key: key for the value to be fetched from redis
+        timeout: time (in ms) until a subsequent attempt to fetch the key
+        num_retries: number of attempts to fetch the key
         cast (func): function that casts an object to another type
 
     Raises:

@@ -1,9 +1,11 @@
 import config
 from log import logger
+from dl_job import DLJob
+from typing import List, Tuple
 
 
 class Cluster:
-    def __init__(self):
+    def __init__(self) -> None:
         self.nodes = config.NODE_LIST
         self.used_cpu = 0
         self.used_mem = 0
@@ -16,40 +18,45 @@ class Cluster:
         self.node_used_gpu_list = [0 for i in range(self.num_nodes)]
 
     @property
-    def num_nodes(self):
+    def num_nodes(self) -> int:
         """The number of computing nodes in the cluster."""
         return len(self.nodes)
 
     @property
-    def nodes(self):
+    def nodes(self) -> List[str]:
         """The list of computing nodes in the cluster."""
         return self._nodes
 
     @nodes.setter
-    def nodes(self, nodes):
+    def nodes(self, nodes: List[str]) -> None:
         self._nodes = nodes
 
     @property
-    def num_cpu(self):
+    def num_cpu(self) -> int:
         """The amount of central processing units in the cluster."""
         return self.num_nodes * config.CPU_PER_NODE
 
+    @num_cpu.setter
+    def num_cpu(self, num_cpu: int) -> None:
+        """The amount of central processing units in the cluster."""
+        self._num_cpu = num_cpu
+
     @property
-    def num_mem(self):
+    def num_mem(self) -> int:
         """The amount of memory in the cluster. TODO: unit?"""
         return self.num_nodes * config.MEM_PER_NODE
 
     @property
-    def num_bw(self):
+    def num_bw(self) -> int:
         """The amount of bandwidth in the cluster. TODO: unit?"""
         return self.num_nodes * config.BW_PER_NODE
 
     @property
-    def num_gpu(self):
+    def num_gpu(self) -> int:
         """The amount of graphical processing units in the cluster."""
         return self.num_nodes * config.GPU_PER_NODE
 
-    def add_node(self, node):
+    def add_node(self, node: str) -> None:
         """Adds a node to the cluster at run-time.
 
         Args:
@@ -61,7 +68,7 @@ class Cluster:
         self.node_used_bw_list.append(0)
         self.node_used_gpu_list.append(0)
 
-    def remove_node(self, node):
+    def remove_node(self, node: str) -> None:
         """Removes a node from the cluster at run-time.
 
         Args:
@@ -79,22 +86,13 @@ class Cluster:
         self.node_used_bw_list.pop(node_index)
         self.node_used_gpu_list.pop(node_index)
 
-    def _set_cluster_config(self):
+    def _set_cluster_config(self) -> None:
         """
         Sets the cluster details, such as nodes, memory, bandwidth and gpus.
         """
-        self.num_nodes = len(config.NODE_LIST)
         self.nodes = config.NODE_LIST
-        cpu_per_node = config.CPU_PER_NODE
-        mem_per_node = config.MEM_PER_NODE
-        bw_per_node = config.BW_PER_NODE
-        gpu_per_node = config.GPU_PER_NODE
-        self.num_cpu = self.num_nodes * cpu_per_node
-        self.num_mem = self.num_nodes * mem_per_node
-        self.num_bw = self.num_nodes * bw_per_node
-        self.num_gpu = self.num_nodes * gpu_per_node
 
-    def get_node_index(self, node):
+    def get_node_index(self, node: str) -> int:
         """Get the index of a node in the nodes list.
 
         Args:
@@ -104,7 +102,7 @@ class Cluster:
         """
         return self.nodes.index(node)
 
-    def check_cluster_resource_full(self, cpu_req, mem_req, bw_req=0, gpu_req=0):
+    def check_cluster_resource_full(self, cpu_req: int, mem_req: int, bw_req: int = 0, gpu_req: int = 0) -> bool:
         """
         Check whether cluster resources are sufficient.
 
@@ -126,7 +124,9 @@ class Cluster:
             ]
         )
 
-    def check_node_resource_full(self, node_id, cpu_req, mem_req, bw_req=0, gpu_req=0, num=1):
+    def check_node_resource_full(
+        self, node_id: int, cpu_req: int, mem_req: int, bw_req: int = 0, gpu_req: int = 0, num: int = 1
+    ) -> bool:
         """
         Check whether resources on a given node is full.
 
@@ -149,7 +149,7 @@ class Cluster:
             ]
         )
 
-    def assign_resources(self, job, task_type, task_num, node_id):
+    def assign_resources(self, job: DLJob, task_type: str, task_num: int, node_id: int) -> None:
         """
         Assign available resources to a node for a given job.
 
@@ -169,7 +169,7 @@ class Cluster:
             self.node_used_bw_list[node_id] += job.resources.worker.worker_bw * task_num
             self.node_used_gpu_list[node_id] += job.resources.worker.worker_gpu * task_num
 
-    def free_resources(self, job, task_type, task_num, node_id):
+    def free_resources(self, job: DLJob, task_type: str, task_num: int, node_id: int) -> None:
         """
         Assign available resources to a node for a given job.
 
@@ -190,7 +190,7 @@ class Cluster:
             self.node_used_bw_list[node_id] -= job.resources.worker.worker_bw * task_num
             self.node_used_gpu_list[node_id] -= job.resources.worker.worker_gpu * task_num
 
-    def sort_nodes(self, resource):
+    def sort_nodes(self, resource: str) -> List[Tuple[int, int]]:
         """
         Sort nodes based on available resource.
         Args:
@@ -209,7 +209,7 @@ class Cluster:
         sorted_list.sort(key=lambda x: x[0])
         return sorted_list
 
-    def get_available_resources(self, node_index):
+    def get_available_resources(self, node_index: int) -> List[float]:
         """
         Sort nodes based on available resource.
         Args:
