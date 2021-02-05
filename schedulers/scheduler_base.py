@@ -55,11 +55,14 @@ class SchedulerBase(metaclass=abc.ABCMeta):
         # send message to progress to update job progress
         coroutine_list = []
         for job in self.uncompleted_jobs:
-            if job.uid not in ps_placements:
+            if job.uid not in ps_placements and not job.metadata.dist_strategy == "allreduce":
                 continue
-            ps_placement = ps_placements[job.uid]
+            if not job.metadata.dist_strategy == "allreduce":
+                ps_placement = ps_placements[job.uid]
+            else:
+                ps_placement = []
             worker_placement = worker_placements[job.uid]
-            if len(ps_placement) > 0 and len(worker_placement) > 0:
+            if (len(ps_placement) > 0 or job.metadata.dist_strategy == "allreduce") and len(worker_placement) > 0:
                 # this may cause many ssh connections on a server and an error "ssh_exchange_identification: Connection closed by remote host"
                 # to avoid this error, run 'echo "MaxStartups 100:10:200" | sudo tee -a /etc/ssh/sshd_config && sudo service ssh restart' on the server
                 self.running_jobs.append(job)

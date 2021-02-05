@@ -190,7 +190,7 @@ class DLJob:
         Sets the batch size for training job.
         The batch size of each worker for sync training may be different
         """
-        if self.envs.kv_store == "dist_async":
+        if self.envs.kv_store == "dist_async" or self.envs.kv_store is None:
             self.batch_sizes = [str(self.metadata.batch_size) for i in range(self.resources.worker.num_worker)]
         elif self.envs.kv_store == "dist_sync" or self.envs.kv_store == "dist_device_sync":
             # will change global batch size during training.
@@ -208,6 +208,8 @@ class DLJob:
             self.epoch_size = self.metadata.num_examples / self.metadata.batch_size
         elif self.envs.kv_store == "dist_async":
             self.epoch_size = self.metadata.num_examples / self.metadata.batch_size / self.resources.worker.num_worker
+        else:
+            self.epoch_size = self.metadata.num_examples / self.metadata.batch_size
 
     def _create_jobs(self) -> List[Job]:
         """Create Kubernetes job object"""
