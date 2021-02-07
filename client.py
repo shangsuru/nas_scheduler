@@ -31,13 +31,13 @@ from tests.end_to_end import EndToEndTest
 
 
 class Client:
-    def __init__(self):
+    def __init__(self) -> None:
         """Initializes a client object. Sets up connection to redis server and subscribes to the daemon channel."""
         self.redis_connection = redis.Redis(config.REDIS_HOST_DAEMON_CLIENT, config.REDIS_PORT_DAEMON_CLIENT)
         self.channel = self.redis_connection.pubsub()
         self.channel.psubscribe("daemon")
 
-    def listen(self):
+    def listen(self) -> dict:
         """Listens for a response from the daemon and returns the data"""
         for msg in self.channel.listen():
             if msg["type"] != "psubscribe":
@@ -46,7 +46,7 @@ class Client:
                 break
         return data
 
-    def submit(self, jobfile):
+    def submit(self, jobfile: str) -> None:
         """Sends a submit message to the daemon
 
         Args:
@@ -55,7 +55,7 @@ class Client:
         self.redis_connection.publish("client", json.dumps({"command": "submit", "args": [jobfile]}))
         print(self.listen())
 
-    def delete(self, uid):
+    def delete(self, uid: int) -> None:
         """Sends a delete message to the daemon
 
         Args:
@@ -64,13 +64,13 @@ class Client:
         self.redis_connection.publish("client", json.dumps({"command": "delete", "args": uid}))
         print(self.listen())
 
-    def top(self):
+    def top(self) -> None:
         """Sends a top message to the daemon and prints a single view for all the jobs running on the cluster"""
         self.redis_connection.publish("client", json.dumps({"command": "top", "args": None}))
         headers = ["id", "name", "total progress/total epochs", "sum_speed(batches/second)"]
-        print(tabulate(self.listen(), headers=headers))
+        print(tabulate(dict(self.listen()), headers=headers))
 
-    def status(self, uid):
+    def status(self, uid: int) -> None:
         """Sends a status message to the daemon and prints in-depth metrics of the job with the given id
 
         Args:
@@ -106,7 +106,7 @@ class Client:
             print(tabulate(data, headers=metrics))
 
 
-def main():
+def main() -> None:
     args = docopt(__doc__, version="Client 1.0")
     client = Client()
     if args["submit"]:

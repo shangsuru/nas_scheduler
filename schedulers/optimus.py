@@ -1,3 +1,10 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING, Dict, List, Any
+
+if TYPE_CHECKING:
+    from cluster import Cluster
+    from dl_job import DLJob
+
 import config
 import sys
 import threading
@@ -13,15 +20,15 @@ from scipy.optimize import curve_fit
 
 
 class OptimusEstimator:
-    def __init__(self, cluster):
+    def __init__(self, cluster: Cluster) -> None:
         self.cluster = cluster
         self.exit_event = threading.Event()
-        self.existing_jobs = []
+        self.existing_jobs: List[DLJob] = []
 
-    def set_exit_flag(self):
+    def set_exit_flag(self) -> None:
         self.exit_event.set()
 
-    def _test_placement(self, jobs):
+    def _test_placement(self, jobs: List[DLJob]) -> Dict[int, List[int]]:
         """
         Test training speed to get points for curve fitting
 
@@ -79,7 +86,7 @@ class OptimusEstimator:
 
         return placements
 
-    def _run(self, job, placement):
+    def _run(self, job: DLJob, placement: List[str]):
         # set placement
         logger.debug(
             f"{job.name}, num_ps: {job.resources.ps.num_ps}, num_worker: \
@@ -92,7 +99,7 @@ class OptimusEstimator:
         # start job
         job.start()
 
-    def test_speed(self, new_jobs):
+    def test_speed(self, new_jobs: List[DLJob]):
         logger.debug(f"start testing training speed for {len(new_jobs)} jobs...")
 
         tic = time.time()
@@ -214,10 +221,10 @@ class OptimusEstimator:
     --------------Below is completion epoch estimation----------------
     """
 
-    def __loss_fit_func(self, x, a, b, c):
+    def __loss_fit_func(self, x: float, a: float, b: float, c: float) -> float:
         return 1 / (a * (x) + b) + c
 
-    def _loss_curve_fitting(self, epochs_arr, losses_arr):
+    def _loss_curve_fitting(self, epochs_arr: List[float], losses_arr: List[float]) -> float:
         param_bounds = ([0, 0, 0], [np.inf, np.inf, np.inf])
 
         # assign different weights to points, default sigma is ones
@@ -237,7 +244,7 @@ class OptimusEstimator:
         )
         return params[0]
 
-    def est_epoch(self, job):
+    def est_epoch(self, job: DLJob) -> int:
         if job.num_epochs < sys.maxsize:
             return job.num_epochs
 
@@ -292,12 +299,12 @@ class OptimusEstimator:
     --------------Below is speed estimation------------
     """
 
-    def __async_speed_fit_func(X, a, b, c, d):
+    def __async_speed_fit_func(X: Any, a: float, b: float, c: float, d: float) -> float:
         p, w = X
         return w / (a + b * w / p + c * w + d * p)
 
     # async curve fitting to get a,b,c
-    def _async_speed_curve_fitting(self, ps_arr, worker_arr, speed_arr):
+    def _async_speed_curve_fitting(self, ps_arr: List[float], worker_arr: List[float], speed_arr: List[float]) -> float:
         param_bounds = ([0, 0, 0, 0], [np.inf, np.inf, np.inf, np.inf])
         sigma = np.ones(len(ps_arr))
         try:
@@ -313,12 +320,14 @@ class OptimusEstimator:
         except Exception as e:
             logger.error(str(e))
 
-    def __sync_speed_fit_func(self, X, a, b, c, d, e):
+    def __sync_speed_fit_func(self, X: Any, a: float, b: float, c: float, d: float, e: float) -> float:
         p, w, batch_size = X
         return 1 / (a * batch_size / w + b + c * w / p + d * w + e * p)
 
     # curve fitting to get a,b,c
-    def _sync_speed_curve_fitting(self, ps_arr, worker_arr, batch_arr, speed_arr):
+    def _sync_speed_curve_fitting(
+        self, ps_arr: List[float], worker_arr: List[float], batch_arr: List[float], speed_arr: List[float]
+    ) -> float:
         param_bounds = ([0, 0, 0, 0, 0], [np.inf, np.inf, np.inf, np.inf, np.inf])
         sigma = np.ones(len(ps_arr))
         try:
@@ -334,7 +343,7 @@ class OptimusEstimator:
         except Exception as e:
             logger.error(f"curve fitting error, {str(e)}")
 
-    def est_speed(self, job, num_ps, num_worker):
+    def est_speed(self, job: DLJob, num_ps: int, num_worker: int) -> float:
         """Give the number of ps and the number of worker, predict the training speed.
         Use the real one if already exists in the dict
         """
@@ -390,24 +399,24 @@ class OptimusEstimator:
 
 
 class OptimusScheduler(SchedulerBase):
-    def __init__(self, cluster):
+    def __init__(self, cluster: Cluster) -> None:
         super().__init__(cluster)
         self.estimator = OptimusEstimator(cluster)
         self.allocator = DefaultAllocator(cluster)
         self.name = "optimus_scheduler"
 
-    def __del__(self):
+    def __del__(self) -> None:
         super().__del__()
         self.estimator.set_exit_flag()
 
-    def __update_util_queue(self, job, util_queue):
+    def __update_util_queue(self, job: DLJob, util_queue: PriorityQueue) -> None:
         """
         Compute utility, allocate 1 ps or 1 worker each time.
         Sometimes can allocate multiple ps or worker for optimization, to avoid stuck in local optimal.
 
         Args:
-            job (DLJob): job instance
-            util_queue (PriorityQueue): a queue based on job utility
+            job: job instance
+            util_queue: a queue based on job utility
         """
 
         end_epoch = self.estimator.est_epoch(job)
@@ -462,7 +471,7 @@ class OptimusScheduler(SchedulerBase):
         else:
             util_queue.put((-worker_util, job.arrival_time, job, "worker"))
 
-    def _schedule(self):
+    def _schedule(self) -> None:
         # first collect speed data points
         new_jobs = []
         while not self.queueing_jobs.empty():

@@ -1,26 +1,30 @@
 import asyncio
 import config
 import time
+from dl_job import DLJob
 from log import logger
 from timer import Timer
+from typing import Dict, List, Optional, Set, Tuple
 
 
 class Progressor:
-    running_jobs = set()
-    num_running_tasks = []
+    running_jobs: Set[DLJob] = set()
+    num_running_tasks: List[float] = []
+    ps_cpu_occupations: List[float] = []
+    worker_cpu_occupations: List[float] = []
 
     @staticmethod
-    def add_to_running_jobs(job):
+    def add_to_running_jobs(job: DLJob) -> None:
         Progressor.running_jobs.add(job)
 
     @staticmethod
-    def remove_from_running_jobs(job):
+    def remove_from_running_jobs(job: DLJob) -> None:
         Progressor.running_jobs.discard(job)
 
     @staticmethod
-    async def update_progress():
+    async def update_progress() -> List[DLJob]:
         freq = 8  # frequency of job progress and training speed updates within a timeslot interval
-        finished_jobs = []
+        finished_jobs: List[DLJob] = []
 
         # collect cpu occupations
         Progressor.ps_cpu_occupations = []
@@ -83,13 +87,13 @@ class Progressor:
         return finished_jobs
 
     @staticmethod
-    def _compute_cpu_occupations(cpu_usage_dict):
+    def _compute_cpu_occupations(cpu_usage_dict: Dict[DLJob, Tuple[float, float]]) -> None:
         """
         Computes the proportion of used to available cpus on parameter servers
         and workers for each job in the current timeslot.
 
         Args:
-            cpu_usage_dict (dict): the job being the key, it contains a tuple of the cpu usage
+            cpu_usage_dict: the job being the key, it contains a tuple of the cpu usage
                                    on the parameter server and the workers for that job
         """
         slot_avg_ps_cpu_list = []
@@ -109,20 +113,20 @@ class Progressor:
             logger.debug(f"Normalized worker cpu: {worker_cpu_occupation}")
 
     @staticmethod
-    def _get_average_cpu_usage(job, ps_metrics, worker_metrics):
+    def _get_average_cpu_usage(job: DLJob, ps_metrics: List[dict], worker_metrics: List[dict]) -> Tuple[float, float]:
         """
         Computes the average cpu usage for parameter servers and workers and also
         sets the difference between the smallest and biggest usage percentage for
         parameter servers and workers on the job object
 
         Args:
-            job (DLJob): job representing a deep learning job running the cluster
-            ps_metrics (dict): different metrics for the job on the parameter server
-            worker_metrics (dict): different metrics for the job on the workers
+            job: job representing a deep learning job running the cluster
+            ps_metrics: different metrics for the job on the parameter server
+            worker_metrics: different metrics for the job on the workers
 
         Returns:
-            avg_ps_cpu (float): the average cpu usage for all parameter servers
-            avg_worker_cpu (float): the average cpu usage for all workers
+            avg_ps_cpu: the average cpu usage for all parameter servers
+            avg_worker_cpu: the average cpu usage for all workers
         """
         if job.dist_strategy == "ps":
             ps_cpu_usage_list = []
@@ -142,7 +146,9 @@ class Progressor:
         return avg_ps_cpu, avg_worker_cpu
 
     @staticmethod
-    async def _get_job_metrics(counter, job):
+    async def _get_job_metrics(
+        counter: int, job: DLJob
+    ) -> Tuple[Optional[List[Tuple[float, float]]], List[float], List[dict], List[dict]]:
         logger.debug(f"Trying to read progress/speed stats #{counter}")
         get_progress = asyncio.create_task(job.get_training_progress_stats())
         get_speed = asyncio.create_task(job.get_training_speed())
@@ -155,7 +161,7 @@ class Progressor:
         return progress_list, speed_list, ps_metrics, worker_metrics
 
     @staticmethod
-    def _log_job_attributes(job, progress_list, speed_list):
+    def _log_job_attributes(job: DLJob, progress_list: List[Tuple[float, float]], speed_list: List[float]) -> None:
         """
         Logs all important information about the job together with given progress and speed lists
         """
@@ -175,7 +181,7 @@ class Progressor:
         )
 
     @staticmethod
-    def _set_job_as_finished(finished_jobs, job):
+    def _set_job_as_finished(finished_jobs: List[DLJob], job: DLJob) -> None:
         """
         Marks a job as finished by setting its status end slot and end time attributes
         and moving it from running_jobs to the finished jobs list
@@ -192,7 +198,7 @@ class Progressor:
         finished_jobs.append(job)
 
     @staticmethod
-    def _compute_job_progress(job, progress_list):
+    def _compute_job_progress(job: DLJob, progress_list: List[Tuple[float, float]]) -> None:
         """
         Sets the progress attribute for the given job
 

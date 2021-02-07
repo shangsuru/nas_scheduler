@@ -1,3 +1,9 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from cluster import Cluster
+
 import config
 import queue
 from allocators.default_allocator import DefaultAllocator
@@ -5,12 +11,12 @@ from schedulers.scheduler_base import SchedulerBase
 
 
 class DRFScheduler(SchedulerBase):
-    def __init__(self, cluster):
+    def __init__(self, cluster: Cluster) -> None:
         super().__init__(cluster)
-        self.allocator = DefaultAllocator(cluster)
-        self.name = "drf_scheduler"
+        self.allocator: DefaultAllocator = DefaultAllocator(cluster)
+        self.name: str = "drf_scheduler"
 
-    def _schedule(self):
+    def _schedule(self) -> None:
         drf_queue = queue.PriorityQueue()
         for job in self.uncompleted_jobs:
             drf_queue.put((0, job.arrival_time, job))

@@ -17,11 +17,11 @@ def main():
     logging.info("start init process ...")
 
     logging.info("start training thread ...")
-    train = threading.Thread(target=(lambda: os.system("python3 /start.py")), args=())
+    train = threading.Thread(target=(lambda: os.system("python /start.py")), args=())
     train.setDaemon(True)
     train.start()
 
-    monitor = threading.Thread(target=(lambda: os.system("python3 /monitor.py")), args=())
+    monitor = threading.Thread(target=(lambda: os.system("python /monitor.py")), args=())
     monitor.setDaemon(True)
     monitor.start()
 

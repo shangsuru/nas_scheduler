@@ -1,0 +1,43 @@
+metadata:
+  name: experiment-mnist
+  modelname: mxnet-mnist
+  batch_size: 64
+  scale_bs: True
+  num_examples: 50000
+  dist_strategy: 'allreduce'
+  tag: 0
+
+envs:
+  kv_store_big_array_bound: "1000000"
+  kv_store:
+  ps_verbose:
+  prog_cmd: horovodrun -np 1 python mxnet_mnist.py
+
+resources:
+  ps:
+    num_ps: 0
+    ps_cpu: 3
+    ps_mem: 9
+    ps_bw : 0
+  worker:
+    num_worker: 0
+    worker_cpu : 2
+    worker_mem : 8
+    worker_gpu : 1
+    worker_bw : 0
+
+container:
+  image: localhost:5000/k8s-mxnet-gpu-full
+  init_script: /init.sh
+
+data:
+  work_dir: /mxnet/example/image-classification/data/
+  data_dir: /data/
+
+  host_workdir_prefix: /data/k8s-workdir/experiment/
+  hdfs_data: /k8s-mxnet/mnist/mnist_train.rec
+  host_data_dir: /data/mxnet-data/mnist/
+
+  data_mounted: True
+
+
