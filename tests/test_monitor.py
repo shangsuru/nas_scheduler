@@ -13,6 +13,7 @@ os.environ["JOB_NAME"] = "TESTMONITOR"
 os.environ["REDIS_HOST"] = config.REDIS_HOST_DAEMON_CLIENT
 os.environ["REDIS_PORT"] = str(config.REDIS_PORT_DAEMON_CLIENT)
 os.environ["REPLICA_ID"] = "0"
+os.environ["FRAMEWORK"] = "mxnet"
 from images.gpu.scripts.monitor import Monitor, TrainingWatcher
 
 
