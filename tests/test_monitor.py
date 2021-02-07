@@ -60,8 +60,8 @@ class TestMonitor:
         validation_accuracy_lst = {}
         validation_cross_entropy_lst = {}
         time_cost_lst = {}
-        for epoch in range(5):
-            for batch in range(10):
+        for epoch in range(3):
+            for batch in range(5):
                 speed_list.append(random.uniform(90, 120))
                 accuracy = random.uniform(accuracy, 1)
                 cross_entropy = random.uniform(0, cross_entropy)
@@ -71,7 +71,7 @@ class TestMonitor:
                 )
                 logfile.write(log)
                 logfile.flush()
-                time.sleep(0.5)
+                time.sleep(1)
 
                 # check metrics calculation for speed
                 avg_speed = sum(speed_list) / len(speed_list)
@@ -102,7 +102,7 @@ class TestMonitor:
             )
             logfile.write(log)
             logfile.flush()
-            time.sleep(0.5)
+            time.sleep(1)
 
             assert epoch == int(self.redis_connection.get("TESTMONITOR-progress_epoch"))
             assert -1 == int(self.redis_connection.get("TESTMONITOR-progress_batch"))
