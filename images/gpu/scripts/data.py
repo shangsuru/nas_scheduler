@@ -23,6 +23,7 @@ from argparse import ArgumentParser, Namespace, _ArgumentGroup
 from mxnet.io import DataBatch, DataIter
 from mxnet.kvstore import KVStore
 from numpy.lib.type_check import typename
+from typing import List, Tuple
 
 
 def add_data_args(parser: ArgumentParser) -> _ArgumentGroup:
@@ -97,11 +98,11 @@ class SyntheticDataIter(DataIter):
         return self
 
     @property
-    def provide_data(self) -> list[mx.io.DataDesc]:
+    def provide_data(self) -> List[mx.io.DataDesc]:
         return [mx.io.DataDesc("data", self.data.shape, self.dtype)]
 
     @property
-    def provide_label(self) -> list[mx.io.DataDesc]:
+    def provide_label(self) -> List[mx.io.DataDesc]:
         return [mx.io.DataDesc("softmax_label", (self.batch_size,), self.dtype)]
 
     def next(self) -> DataBatch:
@@ -125,7 +126,7 @@ class SyntheticDataIter(DataIter):
         self.cur_iter = 0
 
 
-def get_rec_iter(args: Namespace, kv: KVStore = None) -> tuple[mx.DataIter]:
+def get_rec_iter(args: Namespace, kv: KVStore = None) -> Tuple[DataIter]:
     image_shape = tuple([int(l) for l in args.image_shape.split(",")])
     if "benchmark" in args and args.benchmark:
         data_shape = (args.batch_size,) + image_shape
