@@ -8,6 +8,7 @@ metadata:
   tag: 0
 
 envs:
+  framework: "mxnet"
   kv_store_big_array_bound: "1000000"
   kv_store: dist_sync
   ps_verbose:

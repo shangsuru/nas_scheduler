@@ -6,6 +6,7 @@ import redis
 import sys
 import time
 
+from typing import Any, Match, Optional
 from watchdog.events import PatternMatchingEventHandler
 from watchdog.observers import Observer
 
@@ -22,6 +23,94 @@ JOB_NAME = os.getenv("JOB_NAME")
 REDIS_HOST = os.getenv("REDIS_HOST")
 REDIS_PORT = os.getenv("REDIS_PORT")
 REPLICA_ID = os.getenv("REPLICA_ID")
+
+
+class Parser:
+    """
+    Interface class for Parser instances
+    """
+    def epoch(self, input: str) -> Optional[Match[Any]]:
+        """
+        Parses input for epoch
+        """
+        return self.epoch_pattern.search(input)
+
+    def batch(self, input: str) -> Optional[Match[Any]]:
+        """
+        Parses input for batch
+        """
+        return self.batch_pattern.search(input)
+    
+    def speed(self, input: str) -> Optional[Match[Any]]:
+        """
+        Parses input for speed
+        """
+        return self.speed_pattern.search(input)
+
+    def train_acc(self, input: str) -> Optional[Match[Any]]:
+        """
+        Parses input for training accuracy
+        """
+        return self.train_acc_pattern.search(input)
+
+    def train_ce(self, input: str) -> Optional[Match[Any]]:
+        """
+        Parses input for training cross-entropy
+        """
+        return self.train_ce_pattern.search(input)
+
+    def val_acc(self, input: str) -> Optional[Match[Any]]:
+        """
+        Parses input for validation accuracy
+        """
+        return self.val_acc_pattern.search(input)
+
+    def val_ce(self, input: str) -> Optional[Match[Any]]:
+        """
+        Parses input for validation cross-entropy
+        """
+        return self.val_ce_pattern.search(input)
+
+    def time_cost(self, input: str) -> Optional[Match[Any]]:
+        """
+        Parses input for time cost
+        """
+        return self.time_cost_pattern.search(input)
+
+
+class MXNetParser(Parser):
+    epoch_pattern = re.compile(r"Epoch\s*\[?\s*(?P<epoch>\d+)")
+    batch_pattern = re.compile(r"Batch\s*\[?\s*(?P<batch>\d+)")
+    speed_pattern = re.compile(r"Speed(:|=)\s*(?P<speed>\d+.\d+)")
+    train_acc_pattern = re.compile(r"Train(ing)?\s*(:|-)\s*accuracy\s*=\s*(?P<train_acc>\d+.\d+)")
+    train_ce_pattern = re.compile(r"Train(ing)?\s*(:|-)\s*cross-entropy\s*=\s*(?P<train_ce>\d+.\d+)")
+    val_acc_pattern = re.compile(r"Validation\s*(:|-)\s*accuracy\s*=\s*(?P<val_acc>\d+.\d+)")
+    val_ce_pattern = re.compile(r"Validation\s*(:|-)\s*cross-entropy\s*=\s*(?P<val_ce>\d+.\d+)")
+    time_cost_pattern = re.compile(r"Time cost=(?P<time_cost>\d+.\d+)")
+
+
+class PyTorchParser(Parser):
+    # TODO
+    pass
+
+
+class TFParser(Parser):
+    # TODO
+    pass
+
+
+class CustomParser(Parser):
+    """
+    Custom parser
+    """
+    epoch_pattern = re.compile(r"custom epoch prefix(?P<epoch>epoch pattern)")
+    batch_pattern = re.compile(r"custom batch prefix(?P<batch>batch pattern)")
+    speed_pattern = re.compile(r"custom speed prefix(?P<speed>speed pattern)")
+    train_acc_pattern = re.compile(r"custom training accuracy prefix(?P<train_acc>training accuracy pattern)")
+    train_ce_pattern = re.compile(r"custom training ce prefix(?P<train_ce>training ce pattern)")
+    val_acc_pattern = re.compile(r"custom validation accuracy prefix(?P<val_acc>validation accuracy pattern)")
+    val_ce_pattern = re.compile(r"custom validation ce prefix(?P<val_ce>validation ce pattern)")
+    time_cost_pattern = re.compile(r"custom time cost prefix(?P<time_cost>time cost pattern)")
 
 
 class Monitor:
@@ -107,15 +196,17 @@ class TrainingWatcher(PatternMatchingEventHandler):
         self.val_acc = {}
         self.val_loss = {}
 
-        # Regular expressions for matching metrics
-        self._epoch_pattern = re.compile(r"Epoch\s*\[?\s*(?P<epoch>\d+)")
-        self._batch_pattern = re.compile(r"Batch\s*\[?\s*(?P<batch>\d+)")
-        self._speed_pattern = re.compile(r"Speed(:|=)\s*(?P<speed>\d+.\d+)")
-        self._train_acc_pattern = re.compile(r"Train(ing)?\s*(:|-)\s*accuracy\s*=\s*(?P<train_acc>\d+.\d+)")
-        self._train_ce_pattern = re.compile(r"Train(ing)?\s*(:|-)\s*cross-entropy\s*=\s*(?P<train_ce>\d+.\d+)")
-        self._val_acc_pattern = re.compile(r"Validation\s*(:|-)\s*accuracy\s*=\s*(?P<val_acc>\d+.\d+)")
-        self._val_ce_pattern = re.compile(r"Validation\s*(:|-)\s*cross-entropy\s*=\s*(?P<val_ce>\d+.\d+)")
-        self._time_cost_pattern = re.compile(r"Time cost=(?P<time_cost>\d+.\d+)")
+
+        framework = os.getenv("FRAMEWORK")
+        self.parser: Parser = None
+        if framework == "mxnet":
+            self.parser = MXNetParser()
+        elif framework == "tf":
+            self.parser = TFParser()
+        elif framework == "pytorch":
+            self.parser = PyTorchParser()
+        else:
+            self.parser = CustomParser()
 
         # Set default values
         self.redis_connection.set(f"{JOB_NAME}-{REPLICA_ID}-stb_speed", 0)
@@ -227,7 +318,7 @@ class TrainingWatcher(PatternMatchingEventHandler):
         Args:
             string (str): String in which the search should commence
         """
-        res = self._epoch_pattern.search(string)
+        res = self.parser.epoch(string)
         if res:
             self.epoch = int(res.group("epoch"))
 
@@ -239,7 +330,7 @@ class TrainingWatcher(PatternMatchingEventHandler):
             string (str): String in which the search should commence
         """
         # TODO batches are now grouped
-        res = self._batch_pattern.search(string)
+        res = self.parser.batch(string)
         if res:
             self.batch = int(res.group("batch"))
         else:
@@ -252,7 +343,7 @@ class TrainingWatcher(PatternMatchingEventHandler):
         Args:
             string (str): String in which the search should commence
         """
-        res = self._train_acc_pattern.search(string)
+        res = self.parser.train_acc(string)
         if res:
             self.train_acc[self.epoch] = float(res.group("train_acc"))
 
@@ -263,7 +354,7 @@ class TrainingWatcher(PatternMatchingEventHandler):
         Args:
             string (str): String in which the search should commence
         """
-        res = self._train_ce_pattern.search(string)
+        res = self.parser.train_ce(string)
         if res:
             self.train_loss[self.epoch] = float(res.group("train_ce"))
 
@@ -274,7 +365,7 @@ class TrainingWatcher(PatternMatchingEventHandler):
         Args:
             string (str): String in which the search should commence
         """
-        res = self._val_acc_pattern.search(string)
+        res = self.parser.val_acc(string)
         if res:
             self.val_acc[self.epoch] = float(res.group("val_acc"))
 
@@ -285,7 +376,7 @@ class TrainingWatcher(PatternMatchingEventHandler):
         Args:
             string (str): String in which the search should commence
         """
-        res = self._val_ce_pattern.search(string)
+        res = self.parser.val_ce(string)
         if res:
             self.val_loss[self.epoch] = float(res.group("val_ce"))
 
@@ -296,7 +387,7 @@ class TrainingWatcher(PatternMatchingEventHandler):
         Args:
             string (str): String in which the search should commence
         """
-        res = self._time_cost_pattern.search(string)
+        res = self.parser.time_cost(string)
         if res:
             self.time_cost[self.epoch] = float(res.group("time_cost"))
 
@@ -307,7 +398,7 @@ class TrainingWatcher(PatternMatchingEventHandler):
         Args:
             string (str): String in which the search should commence
         """
-        res = self._speed_pattern.search(string)
+        res = self.parser.speed(string)
         if res:
             self.speed_list.append(float(res.group("speed")))
 
