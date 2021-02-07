@@ -29,6 +29,7 @@ class Parser:
     """
     Interface class for Parser instances
     """
+
     def epoch(self, input: str) -> Optional[Match[Any]]:
         """
         Parses input for epoch
@@ -40,7 +41,7 @@ class Parser:
         Parses input for batch
         """
         return self.batch_pattern.search(input)
-    
+
     def speed(self, input: str) -> Optional[Match[Any]]:
         """
         Parses input for speed
@@ -103,6 +104,7 @@ class CustomParser(Parser):
     """
     Custom parser
     """
+
     epoch_pattern = re.compile(r"custom epoch prefix(?P<epoch>epoch pattern)")
     batch_pattern = re.compile(r"custom batch prefix(?P<batch>batch pattern)")
     speed_pattern = re.compile(r"custom speed prefix(?P<speed>speed pattern)")
@@ -195,7 +197,6 @@ class TrainingWatcher(PatternMatchingEventHandler):
         self.train_loss = {}
         self.val_acc = {}
         self.val_loss = {}
-
 
         framework = os.getenv("FRAMEWORK")
         self.parser: Parser = None
