@@ -95,7 +95,7 @@ def add_fit_args(parser):
     return train
 
 
-def fit(args: ArgumentParser, network, data_loader, **kwargs):
+def fit(args, network, data_loader, **kwargs):
     """
     train a model
     args : argparse returns
