@@ -276,7 +276,7 @@ class TrainingWatcher(PatternMatchingEventHandler):
             self._set_dictionary("{}-{}-val-acc".format(JOB_NAME, REPLICA_ID), self.val_acc)
             self._set_dictionary("{}-{}-val-loss".format(JOB_NAME, REPLICA_ID), self.val_loss)
             self.redis_connection.set(
-                "{}-{}-time-cost".format(JOB_NAME), sum(self.time_cost.values()) / len(self.time_cost)
+                "{}-{}-time-cost".format(JOB_NAME, REPLICA_ID), sum(self.time_cost.values()) / len(self.time_cost)
             )
 
             logging.info(
