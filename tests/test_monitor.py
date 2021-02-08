@@ -12,6 +12,7 @@ os.environ["ROLE"] = "WORKER"
 os.environ["JOB_NAME"] = "TESTMONITOR"
 os.environ["REDIS_HOST"] = config.REDIS_HOST_DAEMON_CLIENT
 os.environ["REDIS_PORT"] = str(config.REDIS_PORT_DAEMON_CLIENT)
+os.environ["REPLICA_ID"] = "0"
 from images.gpu.scripts.monitor import Monitor, TrainingWatcher
 
 
@@ -81,8 +82,8 @@ class TestMonitor:
                     pos = int(2 * len(speed_list) / 3)
                     stb_speed = sum(speed_list[pos:]) / len(speed_list[pos:])  # only consider the later part
 
-                stb_speed_mon = float(self.redis_connection.get("TESTMONITOR-stb_speed"))
-                avg_speed_mon = float(self.redis_connection.get("TESTMONITOR-avg_speed"))
+                stb_speed_mon = float(self.redis_connection.get("TESTMONITOR-0-stb_speed"))
+                avg_speed_mon = float(self.redis_connection.get("TESTMONITOR-0-avg_speed"))
 
                 assert stb_speed_mon == stb_speed
                 assert avg_speed_mon == avg_speed
@@ -104,22 +105,22 @@ class TestMonitor:
             logfile.flush()
             time.sleep(1)
 
-            assert epoch == int(self.redis_connection.get("TESTMONITOR-progress_epoch"))
-            assert -1 == int(self.redis_connection.get("TESTMONITOR-progress_batch"))
+            assert epoch == int(self.redis_connection.get("TESTMONITOR-0-progress_epoch"))
+            assert -1 == int(self.redis_connection.get("TESTMONITOR-0-progress_batch"))
             assert train_accuracy_lst == json.loads(
-                self.redis_connection.get("TESTMONITOR-train-acc"), object_hook=jsonKeys2int
+                self.redis_connection.get("TESTMONITOR-0-train-acc"), object_hook=jsonKeys2int
             )
             assert train_cross_entropy_lst == json.loads(
-                self.redis_connection.get("TESTMONITOR-train-loss"), object_hook=jsonKeys2int
+                self.redis_connection.get("TESTMONITOR-0-train-loss"), object_hook=jsonKeys2int
             )
             assert validation_accuracy_lst == json.loads(
-                self.redis_connection.get("TESTMONITOR-val-acc"), object_hook=jsonKeys2int
+                self.redis_connection.get("TESTMONITOR-0-val-acc"), object_hook=jsonKeys2int
             )
             assert validation_cross_entropy_lst == json.loads(
-                self.redis_connection.get("TESTMONITOR-val-loss"), object_hook=jsonKeys2int
+                self.redis_connection.get("TESTMONITOR-0-val-loss"), object_hook=jsonKeys2int
             )
             assert sum(time_cost_lst.values()) / len(time_cost_lst) == float(
-                self.redis_connection.get("TESTMONITOR-time-cost")
+                self.redis_connection.get("TESTMONITOR-0-time-cost")
             )
         self.monitor.stop()
         os.remove("./training.log")

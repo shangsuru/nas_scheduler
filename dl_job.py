@@ -296,9 +296,9 @@ class DLJob:
         async def run(i):
             try:
                 progress_epoch, progress_batch, val_loss = await asyncio.gather(
-                    fetch_with_timeout(redis_connection, f"{self.name}-progress_epoch", 1000, cast=int),
-                    fetch_with_timeout(redis_connection, f"{self.name}-progress_batch", 1000, cast=int),
-                    fetch_with_timeout(redis_connection, f"{self.name}-val-loss", 1000, cast=json.loads),
+                    fetch_with_timeout(redis_connection, f"{self.name}-{i}-progress_epoch", 1000, cast=int),
+                    fetch_with_timeout(redis_connection, f"{self.name}-{i}-progress_batch", 1000, cast=int),
+                    fetch_with_timeout(redis_connection, f"{self.name}-{i}-val-loss", 1000, cast=json.loads),
                 )
 
                 self.progress_list[i] = (progress_epoch, progress_batch)
@@ -325,7 +325,7 @@ class DLJob:
         async def run(i):
             try:
                 self.speed_list[i] = await fetch_with_timeout(
-                    redis_connection, f"{self.name}-stb_speed", 1000, cast=lambda x: float(str(x.decode("utf-8")))
+                    redis_connection, f"{self.name}-{i}-stb_speed", 1000, cast=lambda x: float(str(x.decode("utf-8")))
                 )
             except TimeoutError:
                 logger.error(f"Failed to read training metrics from redis: TIMEOUT")
@@ -459,6 +459,10 @@ class DLJob:
 
             # delete job working dir
             shutil.rmtree(self.dir)
+
+        # delete redis keys for that job
+        for key in redis_connection.keys(f"{self.uid}*"):
+            redis_connection.delete(key)
 
     def get_required_resources_per_node(self) -> Dict[str, float]:
         """
