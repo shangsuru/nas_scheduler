@@ -170,7 +170,7 @@ class TrainingWatcher(PatternMatchingEventHandler):
             f"{JOB_NAME}-{REPLICA_ID}-train-loss",
             f"{JOB_NAME}-{REPLICA_ID}-val-acc",
             f"{JOB_NAME}-{REPLICA_ID}-val-loss",
-            f"{JOB_NAME}-{REPLICA_ID}-time-cost"
+            f"{JOB_NAME}-{REPLICA_ID}-time-cost",
         ]
         self.logfile = str(os.getenv("TRAINING_LOG_DIR")) + str(os.getenv("TRAINING_LOG_FILE"))
         self.last_change = 0
