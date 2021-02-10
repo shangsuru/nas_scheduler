@@ -1,5 +1,5 @@
 name: static-type-checking
-on: [push, pull_request]
+on: [push]
 jobs:
   type-checks:
     runs-on: ubuntu-latest

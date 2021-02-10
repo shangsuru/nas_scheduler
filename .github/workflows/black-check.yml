@@ -1,5 +1,5 @@
 name: check-style
-on: [push, pull_request]
+on: [push]
 jobs:
   black-formatter:
     runs-on: ubuntu-latest
