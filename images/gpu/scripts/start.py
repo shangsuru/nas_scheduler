@@ -161,10 +161,10 @@ def main():
     logging.info("Task finished successfully!")
 
     def parseUID(job_name: str):
-        return job_name[:job_name.find("-")]
-    
+        return job_name[: job_name.find("-")]
+
     redis_connection.publish("daemon", json.dumps({"command": "pod_finished", "args": parseUID(JOB_NAME)}))
-    
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 1:
