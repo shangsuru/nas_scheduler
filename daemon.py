@@ -122,7 +122,7 @@ async def listen(scheduler: SchedulerBase, heartbeat: Heartbeat) -> None:
                                     job.metadata.batch_size,
                                     job.resources.ps.num_ps,
                                     job.resources.worker.num_worker,
-                                    f"{job.progress}/{job.num_epochs}",
+                                    f"{job.progress}/{job.total_num_epochs}",
                                     job.training_speeds[
                                         (
                                             job.resources.ps.num_ps,
@@ -147,7 +147,7 @@ async def listen(scheduler: SchedulerBase, heartbeat: Heartbeat) -> None:
                                     job.metadata["dist_strategy"],
                                     job.metadata.batch_size,
                                     job.resources.worker.num_worker,
-                                    f"{job.progress}/{job.num_epochs}",
+                                    f"{job.progress}/{job.total_num_epochs}",
                                     0,  # add the speed when we know how the speed is calculated when using Horovod
                                     job.ps_cpu_diff,
                                     job.worker_cpu_diff,
@@ -161,7 +161,7 @@ async def listen(scheduler: SchedulerBase, heartbeat: Heartbeat) -> None:
                     [
                         job.uid,
                         job.name,
-                        f"{job.progress}/{job.num_epochs}",
+                        f"{job.progress}/{job.total_num_epochs}",
                         job.training_speeds[
                             (
                                 job.resources.ps.num_ps,
@@ -181,6 +181,10 @@ async def listen(scheduler: SchedulerBase, heartbeat: Heartbeat) -> None:
             elif command == "reset":
                 Timer.reset_clock()
                 await send(redis_connection, "reset-ack", [1])
+            elif command == "pod_finished":
+                for job in scheduler.running_jobs:
+                    if job.uid == int(args):
+                        job.finished_pods += 1
             elif command == "time":
                 pass  # TODO
 

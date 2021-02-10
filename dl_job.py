@@ -84,6 +84,7 @@ class DLJob:
         self.end_slot: int = 0
         self.end_time: float = 0
         self.status = "initialized"
+        self.finished_pods: int = 0
         self.progress: float = 0
 
         # (num_ps, num_worker): speed
@@ -91,7 +92,7 @@ class DLJob:
 
         # epoch : validation_loss
         self.val_losses: Dict[str, Tuple[int, int]] = dict()
-        self.num_epochs = 0
+        self.total_num_epochs = self.metadata["epochs"]
         self.epoch_size = 0
 
         self.ps_cpu_diff: Optional[float] = None

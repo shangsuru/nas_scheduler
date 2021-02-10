@@ -1,5 +1,7 @@
+import json
 import logging
 import os
+import redis
 import requests
 import socket
 import subprocess
@@ -33,6 +35,11 @@ PROG = os.getenv("PROG")
 WORK_DIR = os.getenv("WORK_DIR")
 BATCH_SIZE = os.getenv("BATCH_SIZE")
 KV_STORE = os.getenv("KV_STORE")
+
+REDIS_HOST = os.getenv("REDIS_HOST")
+REDIS_PORT = os.getenv("REDIS_PORT")
+
+redis_connection = redis.Redis(REDIS_HOST, REDIS_PORT)
 
 
 """
@@ -103,6 +110,7 @@ def start_scheduler(cmd, env):
 
 def main():
     global ROLE
+    global redis_connection
 
     logging.info("starting script ...")
 
@@ -152,6 +160,11 @@ def main():
     subprocess.check_call(cmd, env=env, shell=True)
     logging.info("Task finished successfully!")
 
+    def parseUID(job_name: str):
+        return job_name[:job_name.find("-")]
+    
+    redis_connection.publish("daemon", json.dumps({"command": "pod_finished", "args": parseUID(JOB_NAME)}))
+    
 
 if __name__ == "__main__":
     if len(sys.argv) != 1:

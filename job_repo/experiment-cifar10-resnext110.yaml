@@ -2,6 +2,7 @@ metadata:
   name: experiment-cifar10
   modelname: resnet110
   batch_size: 128
+  epochs: 1
   scale_bs: True
   num_examples: 50000
   dist_strategy: "ps"

@@ -75,7 +75,7 @@ class Progressor:
 
                 Progressor._log_job_attributes(job, progress_list, speed_list)
 
-                if job.progress >= job.num_epochs:
+                if job.finished_pods >= len(job.ps_pods) + len(job.worker_pods):
                     Progressor._set_job_as_finished(finished_jobs, job)
                 else:
                     continue
@@ -173,7 +173,7 @@ class Progressor:
                     , num_ps: {job.resources.ps.num_ps}, num_worker: {job.resources.worker.num_worker}\
                     , progress_list: {progress_list}\
                     , job total progress: {job.progress:.3f}\
-                    , num_epochs: {job.num_epochs}\
+                    , num_epochs: {job.total_num_epochs}\
                     , speed_list: {speed_list}, sum_speed (samples/second): {sum(speed_list)}\
                     , sum_speed(batches/second): {sum(speed_list) / int(job.metadata.batch_size)}\
                     , ps cpu usage diff: {job.ps_cpu_diff}\
@@ -219,8 +219,8 @@ class Progressor:
                     batch_list.append(batch)
                 max_batch_index = batch_list.index(max(batch_list))
                 logger.debug(f"epoch_size: {job.epoch_size}")
-                job.progress += epoch_list[max_batch_index] + batch_list[max_batch_index] / job.epoch_size
+                job.progress = epoch_list[max_batch_index] + batch_list[max_batch_index] / job.epoch_size
         else:
             sum_epochs = sum(epoch for epoch, _ in progress_list)
             sum_batches = sum(batch for _, batch in progress_list)
-            job.progress += sum_epochs / len(progress_list) + sum_batches / len(progress_list) / job.epoch_size
+            job.progress = sum_epochs / len(progress_list) + sum_batches / len(progress_list) / job.epoch_size
