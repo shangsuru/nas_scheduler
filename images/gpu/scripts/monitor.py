@@ -165,12 +165,12 @@ class TrainingWatcher(PatternMatchingEventHandler):
         self.epoch = 0
         self.filesize = 0
         self.keys = [
-            "{}-{}-progress".format(JOB_NAME, REPLICA_ID),
-            "{}-{}-train_acc".format(JOB_NAME, REPLICA_ID),
-            "{}-{}-train-loss".format(JOB_NAME, REPLICA_ID),
-            "{}-{}-val-acc".format(JOB_NAME, REPLICA_ID),
-            "{}-{}-val-loss".format(JOB_NAME, REPLICA_ID),
-            "{}-{}-time-cost".format(JOB_NAME, REPLICA_ID),
+            f"{JOB_NAME}-{REPLICA_ID}-progress"
+            f"{JOB_NAME}-{REPLICA_ID}-train_acc"
+            f"{JOB_NAME}-{REPLICA_ID}-train-loss"
+            f"{JOB_NAME}-{REPLICA_ID}-val-acc"
+            f"{JOB_NAME}-{REPLICA_ID}-val-loss"
+            f"{JOB_NAME}-{REPLICA_ID}-time-cost"
         ]
         self.logfile = str(os.getenv("TRAINING_LOG_DIR")) + str(os.getenv("TRAINING_LOG_FILE"))
         self.last_change = 0
@@ -193,8 +193,8 @@ class TrainingWatcher(PatternMatchingEventHandler):
             self.parser = PyTorchParser()
 
         # Set default values
-        self.redis_connection.set("{}-{}-stb_speed".format(JOB_NAME, REPLICA_ID), 0)
-        self.redis_connection.set("{}-{}-avg_speed".format(JOB_NAME, REPLICA_ID), 0)
+        self.redis_connection.set(f"{JOB_NAME}-{REPLICA_ID}-stb_speed", 0)
+        self.redis_connection.set(f"{JOB_NAME}-{REPLICA_ID}-avg_speed", 0)
         for key in self.keys:
             self.redis_connection.set(key, 0)
 
@@ -252,14 +252,14 @@ class TrainingWatcher(PatternMatchingEventHandler):
 
         if len(self.time_cost) != 0:
             print(self.epoch)
-            self.redis_connection.set("{}-{}-progress_epoch".format(JOB_NAME, REPLICA_ID), self.epoch)
-            self.redis_connection.set("{}-{}-progress_batch".format(JOB_NAME, REPLICA_ID), self.batch)
-            self._set_dictionary("{}-{}-train-acc".format(JOB_NAME, REPLICA_ID), self.train_acc)
-            self._set_dictionary("{}-{}-train-loss".format(JOB_NAME, REPLICA_ID), self.train_loss)
-            self._set_dictionary("{}-{}-val-acc".format(JOB_NAME, REPLICA_ID), self.val_acc)
-            self._set_dictionary("{}-{}-val-loss".format(JOB_NAME, REPLICA_ID), self.val_loss)
+            self.redis_connection.set("{JOB_NAME}-{REPLICA_ID}-progress_epoch", self.epoch)
+            self.redis_connection.set("{JOB_NAME}-{REPLICA_ID}-progress_batch", self.batch)
+            self._set_dictionary("{JOB_NAME}-{REPLICA_ID}-train-acc", self.train_acc)
+            self._set_dictionary("{JOB_NAME}-{REPLICA_ID}-train-loss", self.train_loss)
+            self._set_dictionary("{JOB_NAME}-{REPLICA_ID}-val-acc", self.val_acc)
+            self._set_dictionary("{JOB_NAME}-{REPLICA_ID}-val-loss", self.val_loss)
             self.redis_connection.set(
-                "{}-{}-time-cost".format(JOB_NAME, REPLICA_ID), sum(self.time_cost.values()) / len(self.time_cost)
+                "{JOB_NAME}-{REPLICA_ID}-time-cost", sum(self.time_cost.values()) / len(self.time_cost)
             )
 
             logging.info(
@@ -292,8 +292,8 @@ class TrainingWatcher(PatternMatchingEventHandler):
 
             logging.info("Stable Training Speed: " + str(stb_speed))
 
-            self.redis_connection.set("{}-{}-avg_speed".format(JOB_NAME, REPLICA_ID), avg_speed)
-            self.redis_connection.set("{}-{}-stb_speed".format(JOB_NAME, REPLICA_ID), stb_speed)
+            self.redis_connection.set(f"{JOB_NAME}-{REPLICA_ID}-avg_speed", avg_speed)
+            self.redis_connection.set(f"{JOB_NAME}-{REPLICA_ID}-stb_speed", stb_speed)
 
     def parse_epoch(self, string):
         """
