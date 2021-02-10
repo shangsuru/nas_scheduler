@@ -41,7 +41,7 @@ class Parser:
         Parses input for batch
         """
         return self.batch_pattern.search(input)
-        
+
     def speed(self, input: str) -> Optional[Match[Any]]:
         """
         Parses input for speed
@@ -98,21 +98,6 @@ class PyTorchParser(Parser):
 class TFParser(Parser):
     # TODO
     pass
-
-
-class CustomParser(Parser):
-    """
-    Custom parser
-    """
-
-    epoch_pattern = re.compile(r"custom epoch prefix(?P<epoch>epoch pattern)")
-    batch_pattern = re.compile(r"custom batch prefix(?P<batch>batch pattern)")
-    speed_pattern = re.compile(r"custom speed prefix(?P<speed>speed pattern)")
-    train_acc_pattern = re.compile(r"custom training accuracy prefix(?P<train_acc>training accuracy pattern)")
-    train_ce_pattern = re.compile(r"custom training ce prefix(?P<train_ce>training ce pattern)")
-    val_acc_pattern = re.compile(r"custom validation accuracy prefix(?P<val_acc>validation accuracy pattern)")
-    val_ce_pattern = re.compile(r"custom validation ce prefix(?P<val_ce>validation ce pattern)")
-    time_cost_pattern = re.compile(r"custom time cost prefix(?P<time_cost>time cost pattern)")
 
 
 class Monitor:
@@ -206,8 +191,6 @@ class TrainingWatcher(PatternMatchingEventHandler):
             self.parser = TFParser()
         elif framework == "pytorch":
             self.parser = PyTorchParser()
-        else:
-            self.parser = CustomParser()
 
         # Set default values
         self.redis_connection.set("{}-{}-stb_speed".format(JOB_NAME, REPLICA_ID), 0)
