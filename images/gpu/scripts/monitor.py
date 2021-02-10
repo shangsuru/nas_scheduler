@@ -252,14 +252,14 @@ class TrainingWatcher(PatternMatchingEventHandler):
 
         if len(self.time_cost) != 0:
             print(self.epoch)
-            self.redis_connection.set("{JOB_NAME}-{REPLICA_ID}-progress_epoch", self.epoch)
-            self.redis_connection.set("{JOB_NAME}-{REPLICA_ID}-progress_batch", self.batch)
-            self._set_dictionary("{JOB_NAME}-{REPLICA_ID}-train-acc", self.train_acc)
-            self._set_dictionary("{JOB_NAME}-{REPLICA_ID}-train-loss", self.train_loss)
-            self._set_dictionary("{JOB_NAME}-{REPLICA_ID}-val-acc", self.val_acc)
-            self._set_dictionary("{JOB_NAME}-{REPLICA_ID}-val-loss", self.val_loss)
+            self.redis_connection.set(f"{JOB_NAME}-{REPLICA_ID}-progress_epoch", self.epoch)
+            self.redis_connection.set(f"{JOB_NAME}-{REPLICA_ID}-progress_batch", self.batch)
+            self._set_dictionary(f"{JOB_NAME}-{REPLICA_ID}-train-acc", self.train_acc)
+            self._set_dictionary(f"{JOB_NAME}-{REPLICA_ID}-train-loss", self.train_loss)
+            self._set_dictionary(f"{JOB_NAME}-{REPLICA_ID}-val-acc", self.val_acc)
+            self._set_dictionary(f"{JOB_NAME}-{REPLICA_ID}-val-loss", self.val_loss)
             self.redis_connection.set(
-                "{JOB_NAME}-{REPLICA_ID}-time-cost", sum(self.time_cost.values()) / len(self.time_cost)
+                f"{JOB_NAME}-{REPLICA_ID}-time-cost", sum(self.time_cost.values()) / len(self.time_cost)
             )
 
             logging.info(
