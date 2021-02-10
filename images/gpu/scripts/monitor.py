@@ -165,11 +165,11 @@ class TrainingWatcher(PatternMatchingEventHandler):
         self.epoch = 0
         self.filesize = 0
         self.keys = [
-            f"{JOB_NAME}-{REPLICA_ID}-progress"
-            f"{JOB_NAME}-{REPLICA_ID}-train_acc"
-            f"{JOB_NAME}-{REPLICA_ID}-train-loss"
-            f"{JOB_NAME}-{REPLICA_ID}-val-acc"
-            f"{JOB_NAME}-{REPLICA_ID}-val-loss"
+            f"{JOB_NAME}-{REPLICA_ID}-progress",
+            f"{JOB_NAME}-{REPLICA_ID}-train_acc",
+            f"{JOB_NAME}-{REPLICA_ID}-train-loss",
+            f"{JOB_NAME}-{REPLICA_ID}-val-acc",
+            f"{JOB_NAME}-{REPLICA_ID}-val-loss",
             f"{JOB_NAME}-{REPLICA_ID}-time-cost"
         ]
         self.logfile = str(os.getenv("TRAINING_LOG_DIR")) + str(os.getenv("TRAINING_LOG_FILE"))
