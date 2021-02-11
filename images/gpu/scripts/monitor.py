@@ -192,7 +192,7 @@ class TrainingWatcher(PatternMatchingEventHandler):
         elif framework == "pytorch":
             self.parser = PyTorchParser()
         else:
-            throw Exception(f"Framework is not supported: {framework}")
+            raise Exception(f"Framework is not supported: {framework}")
 
         # Set default values
         self.redis_connection.set(f"{JOB_NAME}-{REPLICA_ID}-stb_speed", 0)
