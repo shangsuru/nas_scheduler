@@ -216,6 +216,7 @@ class DLJob:
         job_conf_base = {
             "script": self.container.init_script,
             "prog": self.envs.prog_cmd,
+            "framework": self.envs.framework,
             "work_dir": self.data.work_dir,
             "work_volume": "k8s-mxnet-work-volume",
             "data_dir": self.data.data_dir,
