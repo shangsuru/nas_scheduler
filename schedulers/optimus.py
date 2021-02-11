@@ -245,14 +245,14 @@ class OptimusEstimator:
         return params[0]
 
     def est_epoch(self, job: DLJob) -> int:
-        if job.num_epochs < sys.maxsize:
-            return job.num_epochs
+        if job.total_num_epochs < sys.maxsize:
+            return job.total_num_epochs
 
         existing_epochs = []
         for existing_job in self.existing_jobs:
             if existing_job.tag == job.tag:  # same type of job
-                if existing_job.num_epochs < sys.maxsize:
-                    existing_epochs.append(existing_job.num_epochs)
+                if existing_job.total_num_epochs < sys.maxsize:
+                    existing_epochs.append(existing_job.total_num_epochs)
 
         if len(existing_epochs) > 0:
             # training epoch is already specified

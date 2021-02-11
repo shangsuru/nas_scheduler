@@ -55,7 +55,7 @@ async def setup_redis_connection() -> Tuple[aioredis.ConnectionsPool, aioredis.C
     redis_connection = await aioredis.create_redis_pool(
         (config.REDIS_HOST_DAEMON_CLIENT, config.REDIS_PORT_DAEMON_CLIENT)
     )
-    channel = (await redis_connection.psubscribe("client"))[0]
+    channel = (await redis_connection.psubscribe("daemon"))[0]
     return redis_connection, channel
 
 
@@ -73,14 +73,14 @@ async def listen(scheduler: SchedulerBase, heartbeat: Heartbeat) -> None:
         await heartbeat.on_iteration()
 
         try:
-            sender, message = await asyncio.wait_for(channel.get(), 0.001)
+            receiver, message = await asyncio.wait_for(channel.get(), 0.001)
         except asyncio.TimeoutError:
             continue
 
         command, args = _get_command_args(message)
 
         # execute commands from client
-        if sender == b"client":
+        if receiver == b"daemon":
             if command == "submit":
                 for jobfile in args:
                     job = DLJob.create_from_config_file(os.getcwd(), jobfile)
@@ -122,7 +122,7 @@ async def listen(scheduler: SchedulerBase, heartbeat: Heartbeat) -> None:
                                     job.metadata.batch_size,
                                     job.resources.ps.num_ps,
                                     job.resources.worker.num_worker,
-                                    f"{job.progress}/{job.num_epochs}",
+                                    f"{job.progress}/{job.total_num_epochs}",
                                     job.training_speeds[
                                         (
                                             job.resources.ps.num_ps,
@@ -147,7 +147,7 @@ async def listen(scheduler: SchedulerBase, heartbeat: Heartbeat) -> None:
                                     job.metadata["dist_strategy"],
                                     job.metadata.batch_size,
                                     job.resources.worker.num_worker,
-                                    f"{job.progress}/{job.num_epochs}",
+                                    f"{job.progress}/{job.total_num_epochs}",
                                     0,  # add the speed when we know how the speed is calculated when using Horovod
                                     job.ps_cpu_diff,
                                     job.worker_cpu_diff,
@@ -161,7 +161,7 @@ async def listen(scheduler: SchedulerBase, heartbeat: Heartbeat) -> None:
                     [
                         job.uid,
                         job.name,
-                        f"{job.progress}/{job.num_epochs}",
+                        f"{job.progress}/{job.total_num_epochs}",
                         job.training_speeds[
                             (
                                 job.resources.ps.num_ps,
@@ -181,6 +181,10 @@ async def listen(scheduler: SchedulerBase, heartbeat: Heartbeat) -> None:
             elif command == "reset":
                 Timer.reset_clock()
                 await send(redis_connection, "reset-ack", [1])
+            elif command == "pod_finished":
+                for job in scheduler.running_jobs:
+                    if job.uid == int(args):
+                        job.finished_pods += 1
             elif command == "time":
                 pass  # TODO
 
@@ -196,7 +200,7 @@ async def send(redis_connection: ConnectionsPool, response: str, args: Any = Non
     args: Arguments associated with response, if None no arguments
             are given to the command
     """
-    await redis_connection.publish("daemon", json.dumps({"response": response, "args": args}))
+    await redis_connection.publish("client", json.dumps({"response": response, "args": args}))
 
 
 def _get_command_args(message: str) -> Tuple[str, str]:

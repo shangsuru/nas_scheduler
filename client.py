@@ -35,7 +35,7 @@ class Client:
         """Initializes a client object. Sets up connection to redis server and subscribes to the daemon channel."""
         self.redis_connection = redis.Redis(config.REDIS_HOST_DAEMON_CLIENT, config.REDIS_PORT_DAEMON_CLIENT)
         self.channel = self.redis_connection.pubsub()
-        self.channel.psubscribe("daemon")
+        self.channel.psubscribe("client")
 
     def listen(self) -> dict:
         """Listens for a response from the daemon and returns the data"""
@@ -52,7 +52,7 @@ class Client:
         Args:
             jobfile (str): yaml file containing the job data
         """
-        self.redis_connection.publish("client", json.dumps({"command": "submit", "args": [jobfile]}))
+        self.redis_connection.publish("daemon", json.dumps({"command": "submit", "args": [jobfile]}))
         print(self.listen())
 
     def delete(self, uid: int) -> None:
@@ -61,12 +61,12 @@ class Client:
         Args:
             uid (int): uid of the job to be deleted
         """
-        self.redis_connection.publish("client", json.dumps({"command": "delete", "args": uid}))
+        self.redis_connection.publish("daemon", json.dumps({"command": "delete", "args": uid}))
         print(self.listen())
 
     def top(self) -> None:
         """Sends a top message to the daemon and prints a single view for all the jobs running on the cluster"""
-        self.redis_connection.publish("client", json.dumps({"command": "top", "args": None}))
+        self.redis_connection.publish("daemon", json.dumps({"command": "top", "args": None}))
         headers = ["id", "name", "total progress/total epochs", "sum_speed(batches/second)"]
         print(tabulate(dict(self.listen()), headers=headers))
 
@@ -76,7 +76,7 @@ class Client:
         Args:
             uid (int): uid of the job
         """
-        self.redis_connection.publish("client", json.dumps({"command": "status", "args": uid}))
+        self.redis_connection.publish("daemon", json.dumps({"command": "status", "args": uid}))
         data = self.listen()
         if data[0][2] == "ps":
             metrics = [

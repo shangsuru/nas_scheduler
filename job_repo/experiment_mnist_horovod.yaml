@@ -2,6 +2,7 @@ metadata:
   name: experiment-mnist
   modelname: mxnet-mnist
   batch_size: 64
+  epochs: 5
   scale_bs: True
   num_examples: 50000
   dist_strategy: 'allreduce'

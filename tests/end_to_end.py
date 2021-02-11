@@ -21,7 +21,7 @@ class EndToEndTest:
     def __init__(self):
         self.redis_connection = redis.Redis(config.REDIS_HOST_DAEMON_CLIENT, config.REDIS_PORT_DAEMON_CLIENT)
         self.channel = self.redis_connection.pubsub()
-        self.channel.psubscribe(["daemon", "timer"])
+        self.channel.psubscribe(["client", "timer"])
         self.job_dict = dict()
         self.counter = 0
         self.generate_jobs()
@@ -76,7 +76,7 @@ class EndToEndTest:
             self.send("submit", args=[])
 
     def send(self, command, args=None):
-        self.redis_connection.publish("client", json.dumps({"command": command, "args": args}))
+        self.redis_connection.publish("daemon", json.dumps({"command": command, "args": args}))
 
 
 def main():
