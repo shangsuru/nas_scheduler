@@ -70,8 +70,9 @@ class KubeAPI:
         """
         return self.kube_api_obj.list_node().items
 
-    def upload_file(self, name: str, source_path: str, destination_path: str,
-                    namespace: str = k8s_params["namespace"]) -> None:
+    def upload_file(
+        self, name: str, source_path: str, destination_path: str, namespace: str = k8s_params["namespace"]
+    ) -> None:
         """Uploads a file to a pod.
 
         Args:
@@ -80,21 +81,30 @@ class KubeAPI:
             destination_path (str): The path of where to upload the file on the pod.
             namespace (str): The namespace under which the pod resides.
         """
-        exec_command = ['/bin/bash']
+        exec_command = ["/bin/bash"]
         self.kube_api_obj.connect_get_namespaced_pod_exec(name, namespace, command=exec_command)
         return
-        resp = stream(self.kube_api_obj.connect_get_namespaced_pod_exec, name, namespace, command=exec_command,
-                      stderr=True, stdin=True, stdout=True, tty=False, _preload_content=False)
+        resp = stream(
+            self.kube_api_obj.connect_get_namespaced_pod_exec,
+            name,
+            namespace,
+            command=exec_command,
+            stderr=True,
+            stdin=True,
+            stdout=True,
+            tty=False,
+            _preload_content=False,
+        )
 
-        buffer = b''
+        buffer = b""
         with open(source_path, "rb") as file:
             buffer += file.read()
 
         commands = [
             bytes("mkdir -p ${dirname " + destination_path + "}\n"),
-            bytes("cat <<'EOF' >" + destination_path + "\n", 'utf-8'),
+            bytes("cat <<'EOF' >" + destination_path + "\n", "utf-8"),
             buffer,
-            bytes("EOF\n", 'utf-8')
+            bytes("EOF\n", "utf-8"),
         ]
 
         while resp.is_open():

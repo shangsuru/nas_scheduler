@@ -92,7 +92,7 @@ class Job:
         return [
             client.V1Volume(
                 name="job-volume",
-                host_path=client.V1HostPathVolumeSource(path=f"/data/job/{self.name}", type="Directory")
+                host_path=client.V1HostPathVolumeSource(path=f"/data/job/{self.name}", type="Directory"),
             ),
             client.V1Volume(
                 name=self.conf.get("work_volume"),

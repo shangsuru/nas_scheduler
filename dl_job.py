@@ -99,7 +99,7 @@ class DLJob:
         self.worker_cpu_diff: Optional[float] = None
 
         self.worker_mount_dirs: List[str] = []
-        
+
         self.job_dirs = []
 
     def __lt__(self, other):
