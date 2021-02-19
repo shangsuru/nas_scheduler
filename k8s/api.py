@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from dl_job import DLJob
 from kubernetes import client, config
+from kubernetes.stream import stream
 from log import logger
 from typing import Any
 
@@ -68,6 +69,46 @@ class KubeAPI:
             A list of all worker nodes connected to k8s.
         """
         return self.kube_api_obj.list_node().items
+
+    def upload_file(self, name: str, source_path: str, destination_path: str,
+                    namespace: str = k8s_params["namespace"]) -> None:
+        """Uploads a file to a pod.
+
+        Args:
+            name (str): The name of the pod to upload the file to.
+            source_path (str): The path of the file on the host to upload.
+            destination_path (str): The path of where to upload the file on the pod.
+            namespace (str): The namespace under which the pod resides.
+        """
+        exec_command = ['/bin/bash']
+        self.kube_api_obj.connect_get_namespaced_pod_exec(name, namespace, command=exec_command)
+        return
+        resp = stream(self.kube_api_obj.connect_get_namespaced_pod_exec, name, namespace, command=exec_command,
+                      stderr=True, stdin=True, stdout=True, tty=False, _preload_content=False)
+
+        buffer = b''
+        with open(source_path, "rb") as file:
+            buffer += file.read()
+
+        commands = [
+            bytes("mkdir -p ${dirname " + destination_path + "}\n"),
+            bytes("cat <<'EOF' >" + destination_path + "\n", 'utf-8'),
+            buffer,
+            bytes("EOF\n", 'utf-8')
+        ]
+
+        while resp.is_open():
+            resp.update(timeout=1)
+            if resp.peek_stdout():
+                print("STDOUT: %s" % resp.read_stdout())
+            if resp.peek_stderr():
+                raise Exception(resp.read_stderr())
+            if commands:
+                c = commands.pop(0)
+                resp.write_stdin(c)
+            else:
+                break
+        resp.close()
 
     def get_services(
         self, namespace: dict = k8s_params["namespace"], field_selector: dict = None, label_selector: dict = None
