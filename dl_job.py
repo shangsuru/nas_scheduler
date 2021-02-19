@@ -100,7 +100,7 @@ class DLJob:
 
         self.worker_mount_dirs: List[str] = []
 
-        self.job_dirs = []
+        self.job_dirs: List[str] = []
 
     def __lt__(self, other):
         if not hasattr(other, "uid"):
