@@ -8,9 +8,9 @@ import json
 import os
 import redis
 import shutil
-import time
 import utils
 import yaml
+import time
 from datetime import datetime
 from k8s.api import KubeAPI
 from k8s.job import Job
@@ -99,6 +99,8 @@ class DLJob:
         self.worker_cpu_diff: Optional[float] = None
 
         self.worker_mount_dirs: List[str] = []
+        
+        self.job_dirs = []
 
     def __lt__(self, other):
         if not hasattr(other, "uid"):
@@ -426,7 +428,16 @@ class DLJob:
 
         # start pods in k8s. equivalent to microk8s kubectl create -f jobs.yaml
         for job in self.running_tasks:
+            # Create job directory for placing job files inside.
+            job_dir = f"/data/job/{job.name}"
+            os.system(f"rm -rf '{job_dir}'; mkdir -p '{job_dir}'")
+            self.job_dirs.append(job_dir)
+            # Submit job to k8s
             k8s_api.submit_job(job.k8s_job_obj)
+
+        # Place job files in job directory
+        for directory in self.job_dirs:
+            os.system(f"cp ./job_repo/{self.metadata.name}-files/* {directory}/")
 
     async def delete(self, del_all: bool = False) -> None:
         """Delete the job.
@@ -465,6 +476,10 @@ class DLJob:
         # delete redis keys for that job
         for key in redis_connection.keys(f"{self.uid}*"):
             redis_connection.delete(key)
+
+        # delete job dir
+        for directory in self.job_dirs:
+            os.system(f"rm -rf '{directory}'")
 
     def get_required_resources_per_node(self) -> Dict[str, float]:
         """
