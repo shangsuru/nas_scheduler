@@ -20,15 +20,13 @@ RESILIENCE_TEST_FAILING_POD_NUM = 1
 @pytest.mark.asyncio
 async def test_resilience():
     """
-    Tests, if a server that runs with parameter servers is submitted succesfully, i.e.
-    pods in the k8s cluster are created, metrics are saved to redis and the job got
-    marked as completed in scheduler
+    Run a horovod job and kill the pod and test if the job is still running through successfully
     """
     daemon = Daemon()
     task = asyncio.create_task(daemon.listen())
     client = Client()
     await client.init_redis()
-    job_id = await asyncio.create_task(client.submit("job_repo/experiment-cifar10-resnext110.yaml"))
+    job_id = await asyncio.create_task(client.submit("job_repo/experiment_mnist_horovod.yaml"))
 
     redis_connection = await aioredis.create_redis_pool(
         (config.REDIS_HOST_DAEMON_CLIENT, config.REDIS_PORT_DAEMON_CLIENT)
@@ -47,8 +45,7 @@ async def test_resilience():
     job_pods = []
 
     for pod in pods:
-        if (re.match(f"{job_id}-experiment-cifar10-resnet110-ps.*", pod.metadata.name)
-            or re.match(f"{job_id}-experiment-cifar10-resnet110-worker.*", pod.metadata.name)):
+        if re.match(f"{job_id}-experiment-mnist-mxnet-mnist-worker.*", pod.metadata.name):
             job_pods.append(pod)
 
     failing_pods = []
