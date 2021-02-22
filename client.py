@@ -51,7 +51,7 @@ class Client:
         """Sends a submit message to the daemon
 
         Args:
-            job file: yaml file containing the job data
+            jobfile: yaml file containing the job data
         Returns:
             job id: needed for running integration tests
         """
