@@ -45,7 +45,7 @@ class Job:
 
     def __create_volume_mounts(self) -> List[client.V1VolumeMount]:
         return [
-            client.V1VolumeMount(mount_path=f"/job", name="job-volume"),
+            client.V1VolumeMount(mount_path=f"/data/job", name="job-volume"),
             client.V1VolumeMount(mount_path=self.conf.get("work_dir"), name=self.conf.get("work_volume")),
             client.V1VolumeMount(mount_path=self.conf.get("data_dir"), name=self.conf.get("data_volume")),
             client.V1VolumeMount(mount_path="/usr/local/nvidia/lib", name="nvidia-lib"),

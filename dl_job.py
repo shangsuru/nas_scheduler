@@ -428,16 +428,15 @@ class DLJob:
 
         # start pods in k8s. equivalent to microk8s kubectl create -f jobs.yaml
         for job in self.running_tasks:
-            # Create job directory for placing job files inside.
-            job_dir = f"/data/job/{job.name}"
-            os.system(f"rm -rf '{job_dir}'; mkdir -p '{job_dir}'")
-            self.job_dirs.append(job_dir)
+            # Add job directory for placing job files inside.
+            self.job_dirs.append(f"/data/job/{job.name}")
             # Submit job to k8s
             k8s_api.submit_job(job.k8s_job_obj)
 
         # Place job files in job directory
         for directory in self.job_dirs:
-            os.system(f"cp ./job_repo/{self.metadata.name}-files/* {directory}/")
+            shutil.rmtree(directory, ignore_errors=True)
+            shutil.copytree(f"./job_repo/{self.metadata.name}-files", directory)
 
     async def delete(self, del_all: bool = False) -> None:
         """Delete the job.
@@ -479,7 +478,7 @@ class DLJob:
 
         # delete job dir
         for directory in self.job_dirs:
-            os.system(f"rm -rf '{directory}'")
+            shutil.rmtree(directory)
 
     def get_required_resources_per_node(self) -> Dict[str, float]:
         """
