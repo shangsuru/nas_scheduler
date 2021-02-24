@@ -8,9 +8,9 @@ import json
 import os
 import redis
 import shutil
+import time
 import utils
 import yaml
-import time
 from datetime import datetime
 from k8s.api import KubeAPI
 from k8s.job import Job

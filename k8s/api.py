@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from dl_job import DLJob
 from kubernetes import client, config
-from kubernetes.stream import stream
 from log import logger
 from typing import Any
 
