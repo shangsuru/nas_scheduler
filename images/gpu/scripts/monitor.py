@@ -194,11 +194,11 @@ class TrainingWatcher(PatternMatchingEventHandler):
         else:
             raise Exception(f"Framework is not supported: {framework}")
 
-        # Set default values
-        self.redis_connection.set(f"{JOB_NAME}-{REPLICA_ID}-stb_speed", 0)
-        self.redis_connection.set(f"{JOB_NAME}-{REPLICA_ID}-avg_speed", 0)
+        # mark keys as invalid by setting them to -1
+        self.redis_connection.set(f"{JOB_NAME}-{REPLICA_ID}-stb_speed", -1)
+        self.redis_connection.set(f"{JOB_NAME}-{REPLICA_ID}-avg_speed", -1)
         for key in self.keys:
-            self.redis_connection.set(key, 0)
+            self.redis_connection.set(key, -1)
 
     def on_modified(self, event):
         """
