@@ -436,7 +436,7 @@ class DLJob:
         # Place job files in job directory
         for directory in self.job_dirs:
             shutil.rmtree(directory, ignore_errors=True)
-            shutil.copytree(f"./job_repo/{self.metadata.name}-files", directory)
+            shutil.copytree(self.data.host_data_dir, directory)
 
     async def delete(self, del_all: bool = False) -> None:
         """Delete the job.

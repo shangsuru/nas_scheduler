@@ -1,0 +1,43 @@
+metadata:
+  name: experiment-cifar10
+  modelname: resnet110
+  batch_size: 128
+  epochs: 1
+  scale_bs: True
+  num_examples: 50000
+  dist_strategy: "ps"
+  tag: 0
+
+envs:
+  framework: "mxnet"
+  kv_store_big_array_bound: "1000000"
+  kv_store: dist_sync
+  ps_verbose:
+  prog_cmd: python train_cifar10.py --network resnet --num-layers 50 --disp-batches 10 --num-epochs 1 --data-train /data/job/cifar10_train.rec --data-val /data/job/cifar10_val.rec --gpus 0 --kv-store dist_sync
+
+resources:
+  ps:
+    num_ps: 0
+    ps_cpu: 3
+    ps_mem: 9
+    ps_bw: 0
+  worker:
+    num_worker: 0
+    worker_cpu: 2
+    worker_mem: 8
+    worker_gpu: 1
+    worker_bw: 0
+
+container:
+  image: localhost:5000/k8s-mxnet-gpu-full
+  init_script: /init.sh
+
+data:
+  work_dir: /mxnet/example/image-classification/data/ # Should be set by the scheduler
+  data_dir: /data/ # Should be set by the scheduler
+
+  host_workdir_prefix: /data/k8s-workdir/experiment/ # Should be set by the scheduler
+  hdfs_data: /k8s-mxnet/cifar10/cifar10_train.rec # What is this and is it really needed?
+  host_data_dir: /data/mxnet-dynamic/cifar10/ # Dependencies to be mounted on the pod, available under /data/job/
+
+  data_mounted: False
