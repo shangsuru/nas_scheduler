@@ -13,7 +13,7 @@ envs:
   kv_store_big_array_bound: "1000000"
   kv_store: dist_sync
   ps_verbose:
-  prog_cmd: python train_cifar10.py --network resnet --num-layers 50 --disp-batches 10 --num-epochs 1 --data-train /data/job/cifar10_train.rec --data-val /data/job/cifar10_val.rec --gpus 0 --kv-store dist_sync
+  prog_cmd: python /data/job/train_cifar10.py --network resnet --num-layers 50 --disp-batches 10 --num-epochs 1 --data-train /data/job/cifar10_train.rec --data-val /data/job/cifar10_val.rec --gpus 0 --kv-store dist_sync
 
 resources:
   ps:
