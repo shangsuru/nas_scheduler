@@ -429,7 +429,7 @@ class DLJob:
         # start pods in k8s. equivalent to microk8s kubectl create -f jobs.yaml
         for job in self.running_tasks:
             # Add job directory for placing job files inside.
-            self.job_dirs.append(f"/data/job/{job.name}")
+            self.job_dirs.append(os.path.join(config.JOB_MOUNT_HOST, job.name))
             # Submit job to k8s
             k8s_api.submit_job(job.k8s_job_obj)
 
