@@ -40,7 +40,7 @@ async def test_resilience():
 
     num_worker = job.resources.worker.num_worker
     num_ps = job.resources.ps.num_ps
-    assert num_worker + num_ps >= RESILIENCE_TEST_FAILING_POD_NUM   
+    assert num_worker + num_ps >= RESILIENCE_TEST_FAILING_POD_NUM
 
     job_pods = []
 
