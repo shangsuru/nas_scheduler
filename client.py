@@ -67,13 +67,13 @@ class Client:
             uid: uid of the job to be deleted
         """
         await self.redis_connection.publish("daemon", json.dumps({"command": "delete", "args": uid}))
-        print(self.listen())
+        print(await self.listen())
 
     async def top(self) -> None:
         """Sends a top message to the daemon and prints a single view for all the jobs running on the cluster"""
         await self.redis_connection.publish("daemon", json.dumps({"command": "top", "args": None}))
         headers = ["id", "name", "total progress/total epochs", "sum_speed(batches/second)"]
-        print(tabulate(dict(await self.listen()), headers=headers))
+        print(tabulate(await self.listen(), headers=headers))
 
     async def status(self, uid: int) -> None:
         """Sends a status message to the daemon and prints in-depth metrics of the job with the given id
