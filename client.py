@@ -20,64 +20,69 @@ Options:
   -h --help                   Show this screen.
 
 """
-
+import aioredis
+import asyncio
 import config
 import json
-import redis
 
 from docopt import docopt
 from tabulate import tabulate
 from tests.end_to_end import EndToEndTest
+from typing import Any
 
 
 class Client:
-    def __init__(self) -> None:
-        """Initializes a client object. Sets up connection to redis server and subscribes to the daemon channel."""
-        self.redis_connection = redis.Redis(config.REDIS_HOST_DAEMON_CLIENT, config.REDIS_PORT_DAEMON_CLIENT)
-        self.channel = self.redis_connection.pubsub()
-        self.channel.psubscribe("client")
-
-    def listen(self) -> dict:
+    async def listen(self) -> Any:
         """Listens for a response from the daemon and returns the data"""
-        for msg in self.channel.listen():
-            if msg["type"] != "psubscribe":
-                payload = json.loads(msg["data"])
+        async for receiver, msg in self.channel.iter():
+            if receiver == b"client":
+                payload = json.loads(msg)
                 data = payload["args"]
                 break
         return data
 
-    def submit(self, jobfile: str) -> None:
+    async def init_redis(self):
+        self.redis_connection = await aioredis.create_redis_pool(
+            (config.REDIS_HOST_DAEMON_CLIENT, config.REDIS_PORT_DAEMON_CLIENT)
+        )
+        self.channel = (await self.redis_connection.psubscribe("client"))[0]
+
+    async def submit(self, jobfile: str) -> int:
         """Sends a submit message to the daemon
 
         Args:
-            jobfile (str): yaml file containing the job data
+            jobfile: yaml file containing the job data
+        Returns:
+            job id: needed for running integration tests
         """
-        self.redis_connection.publish("daemon", json.dumps({"command": "submit", "args": [jobfile]}))
-        print(self.listen())
+        await self.redis_connection.publish("daemon", json.dumps({"command": "submit", "args": [jobfile]}))
+        jobid = await self.listen()
+        print(f"submitted job with uid {jobid}")
+        return jobid
 
-    def delete(self, uid: int) -> None:
+    async def delete(self, uid: int) -> None:
         """Sends a delete message to the daemon
 
         Args:
-            uid (int): uid of the job to be deleted
+            uid: uid of the job to be deleted
         """
-        self.redis_connection.publish("daemon", json.dumps({"command": "delete", "args": uid}))
+        await self.redis_connection.publish("daemon", json.dumps({"command": "delete", "args": uid}))
         print(self.listen())
 
-    def top(self) -> None:
+    async def top(self) -> None:
         """Sends a top message to the daemon and prints a single view for all the jobs running on the cluster"""
-        self.redis_connection.publish("daemon", json.dumps({"command": "top", "args": None}))
+        await self.redis_connection.publish("daemon", json.dumps({"command": "top", "args": None}))
         headers = ["id", "name", "total progress/total epochs", "sum_speed(batches/second)"]
-        print(tabulate(dict(self.listen()), headers=headers))
+        print(tabulate(dict(await self.listen()), headers=headers))
 
-    def status(self, uid: int) -> None:
+    async def status(self, uid: int) -> None:
         """Sends a status message to the daemon and prints in-depth metrics of the job with the given id
 
         Args:
-            uid (int): uid of the job
+            uid: uid of the job
         """
-        self.redis_connection.publish("daemon", json.dumps({"command": "status", "args": uid}))
-        data = self.listen()
+        await self.redis_connection.publish("daemon", json.dumps({"command": "status", "args": uid}))
+        data = await self.listen()
         if data[0][2] == "ps":
             metrics = [
                 "job id",
@@ -106,20 +111,22 @@ class Client:
             print(tabulate(data, headers=metrics))
 
 
-def main() -> None:
+async def main() -> None:
     args = docopt(__doc__, version="Client 1.0")
     client = Client()
+    await client.init_redis()
+
     if args["submit"]:
         jobfile = args["<file>"]
-        client.submit(jobfile)
+        await client.submit(jobfile)
     elif args["top"]:
-        client.top()
+        await client.top()
     elif args["delete"]:
         job_id = args["<uid>"]
-        client.delete(job_id)
+        await client.delete(job_id)
     elif args["status"]:
         job_id = args["<uid>"]
-        client.status(job_id)
+        await client.status(job_id)
     elif args["test"]:
         EndToEndTest()
     elif args["simulate"]:
@@ -127,4 +134,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
