@@ -3,12 +3,11 @@ import asyncio
 import config
 import pytest
 import re
+import subprocess
 import time
 
 from client import Client
 from daemon import Daemon
-from functools import partial
-from progressor import Progressor
 from k8s.api import KubeAPI
 
 
@@ -22,11 +21,15 @@ async def test_parameter_server_job():
     pods in the k8s cluster are created, metrics are saved to redis and the job got
     marked as completed in scheduler
     """
+    print("Starting daemon...")
     daemon = Daemon()
     task = asyncio.create_task(daemon.listen())
+    print("Starting client...")
     client = Client()
     await client.init_redis()
-    job_id = await asyncio.create_task(client.submit("job_repo/experiment-cifar10-resnext110.yaml"))
+    job_name = "job_repo/experiment-cifar10-resnext110.yaml"
+    print(f"Submitting job {job_name}")
+    job_id = await asyncio.create_task(client.submit(job_name))
 
     job = daemon.scheduler.running_jobs[0]
 
@@ -34,7 +37,7 @@ async def test_parameter_server_job():
     num_ps = job.resources.ps.num_ps
     await asyncio.sleep(0.5)
 
-    # check if pods get created
+    print("Checking if pods get created...")
     num_ps_pods = 0
     num_worker_pods = 0
     pods = k8s_api.get_pods()
@@ -43,6 +46,16 @@ async def test_parameter_server_job():
             num_ps_pods += 1
         if re.match(f"{job_id}-experiment-cifar10-resnet110-worker.*", pod.metadata.name):
             num_worker_pods += 1
+            await asyncio.sleep(30)
+            # check if the directory for the training data got mounted on the pod
+            output = subprocess.Popen(
+                [f"microk8s kubectl exec {pod.metadata.name} -- ls ../data/job"],
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            )
+            filenames = output.stdout.read()
+            assert "cifar10_train.rec" in str(filenames)
 
     assert num_ps == num_ps_pods
     assert num_worker == num_worker_pods

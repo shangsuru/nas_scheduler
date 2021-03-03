@@ -94,8 +94,7 @@ class Job:
             client.V1Volume(
                 name="job-volume",
                 host_path=client.V1HostPathVolumeSource(
-                    path=os.path.join(config.JOB_MOUNT_HOST, self.name),
-                    type="Directory"
+                    path=os.path.join(config.JOB_MOUNT_HOST, self.name), type="Directory"
                 ),
             ),
             client.V1Volume(
