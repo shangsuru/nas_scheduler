@@ -21,14 +21,11 @@ async def test_parameter_server_job():
     pods in the k8s cluster are created, metrics are saved to redis and the job got
     marked as completed in scheduler
     """
-    print("Starting daemon...")
     daemon = Daemon()
     task = asyncio.create_task(daemon.listen())
-    print("Starting client...")
     client = Client()
     await client.init_redis()
     job_name = "job_repo/experiment-cifar10-resnext110.yaml"
-    print(f"Submitting job {job_name}")
     job_id = await asyncio.create_task(client.submit(job_name))
 
     job = daemon.scheduler.running_jobs[0]
@@ -37,7 +34,7 @@ async def test_parameter_server_job():
     num_ps = job.resources.ps.num_ps
     await asyncio.sleep(0.5)
 
-    print("Checking if pods get created...")
+    # Checking if pods get created...
     num_ps_pods = 0
     num_worker_pods = 0
     pods = k8s_api.get_pods()
