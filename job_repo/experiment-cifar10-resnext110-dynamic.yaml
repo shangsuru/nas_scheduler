@@ -34,5 +34,4 @@ container:
 
 data:
   host_workdir_prefix: /data/k8s-workdir/experiment/ # Should be set by the scheduler
-  hdfs_data: /k8s-mxnet/cifar10/cifar10_train.rec # What is this and is it really needed?
   host_data_dir: /data/mxnet-dynamic/cifar10/ # Dependencies to be mounted on the pod, available under /data/job/

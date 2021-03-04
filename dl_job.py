@@ -266,27 +266,6 @@ class DLJob:
 
         return jobs
 
-    async def _read_data(self) -> None:
-        """
-        Read training data from localhost, otherwise from HDFS.
-        A thread is created for each worker and tries to load the data.
-        """
-        if self.data.hdfs_data is None or self.data.hdfs_data == "":
-            raise ValueError("data is not mounted from localhost and hdfs_data is not specified")
-        proc_list = []
-        for i in range(self.resources.worker.num_worker):
-            node = self.worker_placement[i]
-
-            # get training and validation data from HDFS
-            for data in self.data.hdfs_data:
-                fn = data.split("/")[-1]
-                local_file = self.worker_mount_dirs[i] + fn
-                # force copy even exist: some file may be broken due to interruption
-                cmd = f'ssh {node} "/usr/local/hadoop/bin/hadoop fs -copyToLocal -f {data} {local_file}"'
-                proc_list.append(asyncio.create_task(asyncio.create_subprocess_shell(cmd)))
-
-        await asyncio.gather(*proc_list)
-
     async def _read_progress_stats(self) -> None:
         """Get the job progress from each worker."""
         progress_fn = "progress.txt"
@@ -420,9 +399,6 @@ class DLJob:
         self.__set_batch_size()
 
         self.running_tasks = self._create_jobs()
-
-        # prepare data
-        await self._read_data()
 
         # start pods in k8s. equivalent to microk8s kubectl create -f jobs.yaml
         for job in self.running_tasks:
