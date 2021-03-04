@@ -220,9 +220,9 @@ class DLJob:
             "script": self.container.init_script,
             "prog": self.envs.prog_cmd,
             "framework": self.envs.framework,
-            "work_dir": self.data.work_dir,
+            "work_dir": config.POD_WORK_DIR,
             "work_volume": "k8s-mxnet-work-volume",
-            "data_dir": self.data.data_dir,
+            "data_dir": config.POD_DATA_DIR,
             "data_volume": "k8s-mxnet-data-volume",
             "host_data_dir": self.data.host_data_dir,
             "num_ps": self.resources.ps.num_ps,
@@ -271,8 +271,6 @@ class DLJob:
         Read training data from localhost, otherwise from HDFS.
         A thread is created for each worker and tries to load the data.
         """
-        if self.data.data_mounted:
-            return
         if self.data.hdfs_data is None or self.data.hdfs_data == "":
             raise ValueError("data is not mounted from localhost and hdfs_data is not specified")
         proc_list = []
