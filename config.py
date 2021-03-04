@@ -53,11 +53,9 @@ TRAINING_LOG_FILE = "training.log"
 # Heartbeat configuration
 HEARTBEAT_INTERVAL_SEC = 30
 
-# Pod data structure
-POD_DATA_DIR = "/data/"
-POD_WORK_DIR = f"{POD_DATA_DIR}work"
-
 # Specifies the directory under which all the job dependency directories are placed on the host.
-JOB_MOUNT_HOST = f"/data/job"
+JOB_MOUNT_HOST = "/data"
 # Specifies the directory under which all the job dependencies are mounted on the pods.
-JOB_MOUNT_POD = f"{POD_DATA_DIR}job"
+JOB_MOUNT_POD = "/job/data"
+
+POD_WORK_DIR = "/job"    # Where the training script is started on the pod

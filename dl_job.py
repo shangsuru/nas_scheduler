@@ -98,8 +98,6 @@ class DLJob:
         self.ps_cpu_diff: Optional[float] = None
         self.worker_cpu_diff: Optional[float] = None
 
-        self.worker_mount_dirs: List[str] = []
-
         self.job_dirs: List[str] = []
 
     def __lt__(self, other):
@@ -159,35 +157,6 @@ class DLJob:
         else:
             raise TypeError("worker_placement is not a list")
 
-    def __set_mount_dirs(self, type: str, host_workdir_prefix: str) -> List[str]:
-        """
-        Setting the directories on hosts to be mounted on containers
-        Args:
-            type: 'ps' or 'worker'
-            host_workdir_prefix: host cwd prefix
-
-        Returns:
-            mount_dirs: list of directories, the job scripts should be mounted on the containers
-        """
-        mount_dirs = []
-        if type == "ps":
-            for i in range(self.resources.ps.num_ps):
-                postfix = f"{self.name}-ps-{i}"
-                mount_dir = os.path.join(host_workdir_prefix, postfix)
-                mount_dirs.append(mount_dir)
-                cmd = f'ssh {self.ps_placement[i]} "rm -rf {mount_dir}; mkdir -p {mount_dir}"'
-                os.system(cmd)
-
-        elif type == "worker":
-            for i in range(self.resources.worker.num_worker):
-                postfix = f"{self.name}-worker-{i}"
-                mount_dir = os.path.join(host_workdir_prefix, postfix)
-                mount_dirs.append(mount_dir)
-                cmd = f'ssh {self.worker_placement[i]} "rm -rf {mount_dir}; mkdir -p {mount_dir}"'
-                os.system(cmd)
-
-        return mount_dirs
-
     def __set_batch_size(self) -> None:
         """
         Sets the batch size for training job.
@@ -222,7 +191,6 @@ class DLJob:
             "framework": self.envs.framework,
             "work_dir": config.POD_WORK_DIR,
             "work_volume": "k8s-mxnet-work-volume",
-            "data_dir": config.POD_DATA_DIR,
             "data_volume": "k8s-mxnet-data-volume",
             "host_data_dir": self.data.host_data_dir,
             "num_ps": self.resources.ps.num_ps,
@@ -240,7 +208,6 @@ class DLJob:
         jobs = []
         for j in range(self.resources.worker.num_worker):
             worker_job_conf = {
-                "host_mount_dir": self.worker_mount_dirs[j],
                 "worker_placement": self.worker_placement[j],
                 "batch_size": self.batch_sizes[j],
             }
@@ -254,7 +221,7 @@ class DLJob:
             jobs.append(job)
 
         for j in range(self.resources.ps.num_ps):
-            ps_job_conf = {"host_mount_dir": self.ps_mount_dirs[j], "ps_placement": self.ps_placement[j]}
+            ps_job_conf = {"ps_placement": self.ps_placement[j]}
             job = Job(
                 name=self.name,
                 type="ps",
@@ -392,10 +359,6 @@ class DLJob:
         # job working dir on host
         os.makedirs(self.dir)
 
-        self.ps_mount_dirs = self.__set_mount_dirs("ps", self.data.host_workdir_prefix)  # ps container mount
-        self.worker_mount_dirs = self.__set_mount_dirs(
-            "worker", self.data.host_workdir_prefix
-        )  # worker container mount
         self.__set_batch_size()
 
         self.running_tasks = self._create_jobs()
@@ -425,26 +388,6 @@ class DLJob:
         blocking_tasks = [loop.run_in_executor(executor, k8s_api.delete_job, task.uname) for task in self.running_tasks]
 
         await asyncio.wait(blocking_tasks)
-
-        blocking_tasks = []
-        # remove mounted dirs on hosts
-        if self.worker_mount_dirs and del_all:
-            for i in range(self.resources.worker.num_worker):
-                node = self.worker_placement[i]
-                worker_mount_dir = self.worker_mount_dirs[i]
-                cmd = f'timeout 10 ssh {node} "rm -r {worker_mount_dir}"'
-                blocking_tasks.append(loop.run_in_executor(executor, os.system, cmd))
-
-            for i in range(self.resources.ps.num_ps):
-                node = self.ps_placement[i]
-                ps_mount_dir = self.ps_mount_dirs[i]
-                cmd = f'timeout 10 ssh {node} "rm -r {ps_mount_dir}"'
-                blocking_tasks.append(loop.run_in_executor(executor, os.system, cmd))
-
-            await asyncio.wait(blocking_tasks)
-
-            # delete job working dir
-            shutil.rmtree(self.dir)
 
         # delete redis keys for that job
         for key in redis_connection.keys(f"{self.uid}*"):

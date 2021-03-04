@@ -47,8 +47,6 @@ class Job:
     def __create_volume_mounts(self) -> List[client.V1VolumeMount]:
         return [
             client.V1VolumeMount(mount_path=config.JOB_MOUNT_POD, name="job-volume"),
-            client.V1VolumeMount(mount_path=self.conf.get("work_dir"), name=self.conf.get("work_volume")),
-            client.V1VolumeMount(mount_path=self.conf.get("data_dir"), name=self.conf.get("data_volume")),
             client.V1VolumeMount(mount_path="/usr/local/nvidia/lib", name="nvidia-lib"),
             client.V1VolumeMount(mount_path="/usr/local/nvidia/lib64", name="nvidia-lib64"),
         ]
@@ -97,16 +95,6 @@ class Job:
                     path=os.path.join(config.JOB_MOUNT_HOST, self.name),
                     type="Directory"
                 ),
-            ),
-            client.V1Volume(
-                name=self.conf.get("work_volume"),
-                # TODO: fix the mount dir (ps, worker)?
-                host_path=client.V1HostPathVolumeSource(path=self.conf.get("host_mount_dir")),
-            ),
-            client.V1Volume(
-                name=self.conf.get("data_volume"),
-                # TODO: fix the mount dir (ps, worker)?
-                host_path=client.V1HostPathVolumeSource(path=self.conf.get("host_data_dir")),
             ),
             client.V1Volume(
                 name="nvidia-lib",
