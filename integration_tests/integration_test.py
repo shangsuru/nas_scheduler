@@ -7,8 +7,6 @@ import time
 
 from client import Client
 from daemon import Daemon
-from functools import partial
-from progressor import Progressor
 from k8s.api import KubeAPI
 
 
