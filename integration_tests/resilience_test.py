@@ -8,8 +8,6 @@ import time
 
 from client import Client
 from daemon import Daemon
-from functools import partial
-from progressor import Progressor
 from k8s.api import KubeAPI
 
 
@@ -54,22 +52,21 @@ async def test_resilience():
         if choice not in failing_pods:
             failing_pods.append(choice)
 
-    await asyncio.sleep(30)
-
     for fail in failing_pods:
         print(fail.metadata.name)
         k8s_api.kill_pod(fail.metadata.name)
 
     # see if job is in finished job list of progressor
     time_to_wait = 300
-    while True:
-        tic = time.time()
+    while time_to_wait > 0:
+        t1 = time.time()
         await asyncio.wait_for(channel.wait_message(), time_to_wait)
-        receiver, msg = await channel.get()
+        receiver, _ = await channel.get()
         if receiver == b"timer":
             break
-        toc = time.time()
-        time_to_wait -= toc - tic
+        t2 = time.time()
+        waited = t2 - t1
+        time_to_wait -= waited
 
     assert job in daemon.scheduler.completed_jobs
 
