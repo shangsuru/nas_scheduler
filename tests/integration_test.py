@@ -12,7 +12,9 @@ from k8s.api import KubeAPI
 
 
 k8s_api = KubeAPI()
+
 RESILIENCE_TEST_FAILING_POD_NUM = 1
+
 
 
 @pytest.mark.asyncio
