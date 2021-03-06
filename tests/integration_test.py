@@ -127,7 +127,8 @@ async def test_horovod_job():
 
     task.cancel()
 
-    @pytest.mark.asyncio
+
+@pytest.mark.asyncio
 async def test_resilience():
     """
     Run a horovod job and kill the pod and test if the job is still running through successfully
