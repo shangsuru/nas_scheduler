@@ -58,4 +58,4 @@ JOB_MOUNT_HOST = "/data"
 # Specifies the directory under which all the job dependencies are mounted on the pods.
 JOB_MOUNT_POD = "/job/data"
 
-POD_WORK_DIR = "/job"    # Where the training script is started on the pod
+POD_WORK_DIR = "/job"  # Where the training script is started on the pod
