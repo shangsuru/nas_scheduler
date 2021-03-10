@@ -50,5 +50,6 @@ microk8s kubectl delete jobs --all
 ```
 to fix this. Another reason might be that there are too many dangling docker images, which drain the server's storage:
 ```
+docker rm $(docker ps -a -q -f status=exited)
 docker image prune
 ```
