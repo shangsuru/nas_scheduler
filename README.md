@@ -10,6 +10,11 @@ Our final architecture consists of a scheduler for managing resources, a progres
 pip3 install -r requirements.txt
 ```
 
+To launch redis inside the k8s cluster:
+```
+kubectl apply -f images/redis-master.yml
+```
+
 ### Running the scheduler
 
 First to start the scheduler, run the daemon with
