@@ -6,6 +6,7 @@ from .api import KubeAPI
 import config
 from kubernetes import client
 import utils
+import os
 
 
 k8s_api = KubeAPI()
@@ -45,6 +46,7 @@ class Job:
 
     def __create_volume_mounts(self) -> List[client.V1VolumeMount]:
         return [
+            client.V1VolumeMount(mount_path=config.JOB_MOUNT_POD, name="job-volume"),
             client.V1VolumeMount(mount_path=self.conf.get("work_dir"), name=self.conf.get("work_volume")),
             client.V1VolumeMount(mount_path=self.conf.get("data_dir"), name=self.conf.get("data_volume")),
             client.V1VolumeMount(mount_path="/usr/local/nvidia/lib", name="nvidia-lib"),
@@ -90,6 +92,12 @@ class Job:
     def __create_volumes(self) -> List[client.V1Volume]:
         return [
             client.V1Volume(
+                name="job-volume",
+                host_path=client.V1HostPathVolumeSource(
+                    path=os.path.join(config.JOB_MOUNT_HOST, self.name), type="Directory"
+                ),
+            ),
+            client.V1Volume(
                 name=self.conf.get("work_volume"),
                 # TODO: fix the mount dir (ps, worker)?
                 host_path=client.V1HostPathVolumeSource(path=self.conf.get("host_mount_dir")),
@@ -113,8 +121,8 @@ class Job:
 
     def _create_job_obj(self) -> client.V1Job:
         # Configure Pod template container
-        container = self.__create_containers()
         volumes = self.__create_volumes()
+        container = self.__create_containers()
 
         # Create and configure a spec section
         template = client.V1PodTemplateSpec(

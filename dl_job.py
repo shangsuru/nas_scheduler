@@ -100,6 +100,8 @@ class DLJob:
 
         self.worker_mount_dirs: List[str] = []
 
+        self.job_dirs: List[str] = []
+
     def __lt__(self, other):
         if not hasattr(other, "uid"):
             return NotImplemented
@@ -426,7 +428,15 @@ class DLJob:
 
         # start pods in k8s. equivalent to microk8s kubectl create -f jobs.yaml
         for job in self.running_tasks:
+            # Add job directory for placing job files inside.
+            self.job_dirs.append(os.path.join(config.JOB_MOUNT_HOST, job.name))
+            # Submit job to k8s
             k8s_api.submit_job(job.k8s_job_obj)
+
+        # Place job files in job directory
+        for directory in self.job_dirs:
+            shutil.rmtree(directory, ignore_errors=True)
+            shutil.copytree(self.data.host_data_dir, directory)
 
     async def delete(self, del_all: bool = False) -> None:
         """Delete the job.
@@ -465,6 +475,10 @@ class DLJob:
         # delete redis keys for that job
         for key in redis_connection.keys(f"{self.uid}*"):
             redis_connection.delete(key)
+
+        # delete job dir
+        for directory in self.job_dirs:
+            shutil.rmtree(directory)
 
     def get_required_resources_per_node(self) -> Dict[str, float]:
         """

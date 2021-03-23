@@ -52,3 +52,8 @@ TRAINING_LOG_FILE = "training.log"
 
 # Heartbeat configuration
 HEARTBEAT_INTERVAL_SEC = 30
+
+# Specifies the directory under which all the job dependency directories are placed on the host.
+JOB_MOUNT_HOST = "/data/job"
+# Specifies the directory under which all the job dependencies are mounted on the pods.
+JOB_MOUNT_POD = "/data/job"

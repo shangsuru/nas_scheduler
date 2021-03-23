@@ -4,6 +4,7 @@ import config
 import pytest
 import random
 import re
+import subprocess
 import time
 
 from client import Client
@@ -27,7 +28,8 @@ async def test_parameter_server_job():
     task = asyncio.create_task(daemon.listen())
     client = Client()
     await client.init_redis()
-    job_id = await asyncio.create_task(client.submit("job_repo/experiment-cifar10-resnext110.yaml"))
+    job_name = "job_repo/experiment-cifar10-resnext110.yaml"
+    job_id = await asyncio.create_task(client.submit(job_name))
 
     job = daemon.scheduler.running_jobs[0]
 
@@ -35,7 +37,7 @@ async def test_parameter_server_job():
     num_ps = job.resources.ps.num_ps
     await asyncio.sleep(0.5)
 
-    # check if pods get created
+    # Checking if pods get created...
     num_ps_pods = 0
     num_worker_pods = 0
     pods = k8s_api.get_pods()
@@ -44,6 +46,16 @@ async def test_parameter_server_job():
             num_ps_pods += 1
         if re.match(f"{job_id}-experiment-cifar10-resnet110-worker.*", pod.metadata.name):
             num_worker_pods += 1
+            await asyncio.sleep(30)
+            # check if the directory for the training data got mounted on the pod
+            output = subprocess.Popen(
+                [f"microk8s kubectl exec {pod.metadata.name} -- ls ../data/job"],
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            )
+            filenames = output.stdout.read()
+            assert "cifar10_train.rec" in str(filenames)
 
     assert num_ps == num_ps_pods
     assert num_worker == num_worker_pods
