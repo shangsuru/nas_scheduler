@@ -49,7 +49,7 @@ async def test_parameter_server_job():
             await asyncio.sleep(30)
             # check if the directory for the training data got mounted on the pod
             output = subprocess.Popen(
-                [f"microk8s kubectl exec {pod.metadata.name} -- ls ../data/job"],
+                [f"microk8s kubectl exec {pod.metadata.name} -- ls {config.JOB_MOUNT_POD}"],
                 shell=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
